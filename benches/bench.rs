@@ -46,7 +46,7 @@ fn testing_data(name: &str) -> TestData {
 fn apply_doc(test_data: &TestData) -> Crdt<List<u8>> {
     let mut doc = <Crdt<_>>::new(List::new());
 
-    for txn in test_data.txns.iter() {
+    for txn in &test_data.txns {
         for TestPatch(pos, del_span, ins_content) in &txn.patches {
             for _ in 0..*del_span {
                 let instr = doc.delete(*pos);
@@ -82,11 +82,11 @@ fn local_benchmarks(c: &mut Criterion) {
         group.sample_size(CRITERION_MIN_SAMPLE_SIZE);
         group.throughput(Throughput::Elements(test_data.len() as u64));
         group.bench_function(BenchmarkId::new("apply", name), |b| {
-            b.iter(|| doc = apply_doc(&test_data))
+            b.iter(|| doc = apply_doc(&test_data));
         });
         group.finish();
         println!("Currently allocated: {}B", ALLOCATOR.allocated());
-        println!()
+        println!();
     }
 }
 
