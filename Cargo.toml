@@ -1,0 +1,34 @@
+[package]
+name = "otto-test"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+authors = ["The Tably Team <team@tably.com>"]
+categories = []
+keywords = ["crdt","crdts","ot"]
+description = """
+Otto: a unified approach to CRDTs and OT
+"""
+repository = "https://github.com/tablyinc/otto-test"
+homepage = "https://github.com/tablyinc/otto-test"
+documentation = "https://docs.rs/otto-test"
+readme = "README.md"
+edition = "2021"
+
+[dev-dependencies]
+cap = "0.1.0"
+criterion = "0.3.6"
+crdt-testdata = { git = "https://github.com/josephg/diamond-types/", rev = "316032a3b9fb7211704ee60f67cdde8824d24150" }
+
+[dependencies]
+otto = { path = "../otto", version = "0.1.0" }
+
+diamond-types = { git = "https://github.com/josephg/diamond-types/", rev = "316032a3b9fb7211704ee60f67cdde8824d24150" }
+all_asserts = "2"
+itertools = "0.10"
+jemallocator = "0.5"
+rand = { version = "0.8", default-features = false, features = ["small_rng", "std", "std_rng"] }
+random-branch = "0.1"
+
+[[bench]]
+name = "bench"
+harness = false
