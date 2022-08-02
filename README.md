@@ -1,11 +1,20 @@
 # Otto: a unified approach to CRDTs and OT
 
-This repo contains tests for `otto`. `otto` enables any boring Rust data structure (so no `Rc`, `RefCell`, etc) to be used as a replicated data type. It supports being used in multiple ways, including:
+This repo contains tests for `otto`. `otto` enables any boring Rust data structure (without `Rc`, `RefCell` etc.) to be used as a replicated data type. It supports achieving convergence via multiple approaches, including:
 
-* Exposing a data structure as an operation-based CRDT by wrapping it with `Crdt<T>`.
-* Using OT with a synchronising server, by calling methods `insert_and_rebase_forward`, `insert_and_rebase_back` and `converge`.
+* Wrapping with `Crdt<T>` to leverage [operation-based CRDT techniques](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type#Operation-based_CRDTs).
+* Methods `insert_and_rebase_forward`, `insert_and_rebase_back` and `converge` to leverage [OT techniques](https://en.wikipedia.org/wiki/Operational_transformation) with a synchronising server.
 
-It also supports synchronising of clients using both CRDT and OT techniques.
+It also supports combining these approaches to synchronise a mix of clients using both CRDT and OT techniques.
+
+## Project aims
+
+* [ ] Minimal bookkeeping (no timestamps, IDs or similar)
+* [ ] Rich set of data types and operations (e.g. `Map<K, V>`, [`RichText`](https://www.inkandswitch.com/peritext/), `sort` and `group_by` operations on `List<T>`)
+* [x] Composability (support arbitrary nesting of types, e.g. `List<(u64, List<u8>)>`)
+* [x] Differential dataflow support
+* [x] Performance, sufficient for overhead to be negligible in real-world use (within \~1 OoM of [Diamond types](https://josephg.com/blog/crdts-go-brrr/))
+* [x] Achieve the strongest known useful properties (e.g. convergence and inverse [properties](https://en.wikipedia.org/wiki/Operational_transformation#Transformation_properties))
 
 ## Data types supported
 
