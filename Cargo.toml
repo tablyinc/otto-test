@@ -21,6 +21,7 @@ crdt-testdata = { git = "https://github.com/josephg/diamond-types/", rev = "3160
 criterion = "0.3.6"
 # this revision is our forked patch on top of the tip of master (as of this writing) from Seph's repo
 diamond-types = { git = "https://github.com/tablyinc/diamond-types/", rev = "eb2fde38817b7e8d17955781fe293f22bb241482" }
+hashbag = "0.1.9"
 
 [dependencies]
 otto = { path = "../otto", version = "0.1.0" }

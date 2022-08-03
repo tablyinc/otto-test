@@ -16,7 +16,7 @@
 //! OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 //! CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use std::ops::Range;
+use std::{hash::Hash, ops::Range};
 
 use all_asserts::{assert_gt, debug_assert_gt};
 use diamond_types::list::{
@@ -25,10 +25,11 @@ use diamond_types::list::{
     operation::{OpKind, Operation},
     ListCRDT,
 };
+use hashbag::HashBag;
 use otto::{
     crdt::Crdt,
     list::{List, ListInstr},
-    State,
+    State, StateTest,
 };
 use rand::prelude::*;
 
@@ -155,6 +156,33 @@ fn make_random_change_fuzz_forever() {
             println!("seed {seed}");
         }
         make_random_change_fuzz::<false>(seed);
+    }
+}
+
+pub fn add_missing_operations_from<T>(to: &mut Crdt<T>, from: &Crdt<T>)
+where
+    T: State + Eq + Hash,
+    T::Instr: Eq + Hash,
+{
+    let self_: HashBag<_> = to.instrs().collect();
+    let from_: HashBag<_> = from.instrs().collect();
+    for (instr, count) in from_.difference(&self_) {
+        for _ in 0..count {
+            to.apply(instr.clone());
+        }
+    }
+}
+
+#[test]
+fn add_missing_operations_from_converges() {
+    let rng = &mut SmallRng::seed_from_u64(42);
+    for _ in 0..100 {
+        let state = <List<u64>>::gen(rng);
+        let mut crdt_a = <Crdt<_>>::gen_from_state(rng, &state, 10);
+        let mut crdt_b = <Crdt<_>>::gen_from_state(rng, &state, 10);
+        add_missing_operations_from(&mut crdt_a, &crdt_b);
+        add_missing_operations_from(&mut crdt_b, &crdt_a);
+        assert!(crdt_a.converges(&crdt_b), "{:?}\n{:?}", crdt_a, crdt_b);
     }
 }
 
