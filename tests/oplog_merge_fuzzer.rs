@@ -16,10 +16,150 @@
 //! OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 //! CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use diamond_types::list::{fuzzer_tools, fuzzer_tools::make_random_change, ListCRDT};
+use std::ops::Range;
+
+use all_asserts::{assert_gt, debug_assert_gt};
+use diamond_types::list::{
+    fuzzer_tools,
+    fuzzer_tools::make_random_change,
+    operation::{OpKind, Operation},
+    ListCRDT,
+};
+use otto::{
+    crdt::Crdt,
+    list::{List, ListInstr},
+    State,
+};
 use rand::prelude::*;
 
-fn oplog_merge_fuzz(seed: u64, verbose: bool) {
+fn last_n_ops(crdt: &ListCRDT, n: usize) -> impl Iterator<Item = Operation> + '_ {
+    crdt.oplog.operations.0[crdt.oplog.operations.0.len() - n..]
+        .iter()
+        .map(|op| op.1.to_operation(&crdt.oplog))
+}
+
+fn get_char_range(op: &Operation) -> Range<usize> {
+    if op.loc.fwd {
+        Range {
+            start: op.loc.span.start,
+            end: op.loc.span.end,
+        }
+    } else {
+        Range {
+            start: op.loc.span.end,
+            end: op.loc.span.start,
+        }
+    }
+}
+
+fn to_utf8_range(doc: &List<u8>, char_range: &Range<usize>) -> Range<usize> {
+    let string = doc_to_string(&doc);
+    let offset = string
+        .chars()
+        .take(char_range.start)
+        .collect::<String>()
+        .len();
+    let span = string
+        .chars()
+        .skip(char_range.start)
+        .take(char_range.end - char_range.start)
+        .collect::<String>()
+        .len();
+    offset..offset + span
+}
+
+fn convert(crdt: &Crdt<List<u8>>, op: &Operation) -> Vec<ListInstr<u8>> {
+    debug_assert!(op.content.is_some());
+    let mut ops = vec![];
+    let mut doc = (**crdt).clone();
+    match op.kind {
+        OpKind::Ins => {
+            debug_assert!(op.loc.fwd);
+            for (i, x) in op.content.as_ref().unwrap().as_bytes().iter().enumerate() {
+                let ins = doc.insert(op.loc.span.start + i, *x);
+                doc.apply(&ins);
+                ops.push(ins);
+            }
+        }
+        OpKind::Del => {
+            let char_range = get_char_range(&op);
+            let utf8_range = to_utf8_range(&doc, &char_range);
+            for _ in 0..utf8_range.len() {
+                let del = doc.delete(utf8_range.start);
+                doc.apply(&del);
+                ops.push(del);
+            }
+        }
+    }
+    ops
+}
+
+fn doc_to_string(doc: &List<u8>) -> String {
+    String::from_utf8((0..doc.len()).map(|at| doc[at]).collect::<Vec<_>>()).unwrap()
+}
+
+fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
+    let mut rng = SmallRng::seed_from_u64(seed);
+
+    let mut diamond = ListCRDT::new();
+    diamond.get_or_create_agent_id("agent 0");
+
+    let mut otto = <Crdt<List<u8>>>::new(List::new());
+    // how many otto instructions was diamond types' last operation
+    let mut last_n = 0;
+
+    for _i in 0..200 {
+        if VERBOSE {
+            println!("\n\ni {_i}");
+        }
+
+        let prev_len = diamond.oplog.operations.0.len();
+        make_random_change(&mut diamond, None, 0 as _, &mut rng);
+        let curr_len = diamond.oplog.operations.0.len();
+
+        // same type consecutive operations at the end get compressed into an updated last operation
+        if curr_len == prev_len {
+            // undo diamond types' last operation from previous run
+            debug_assert_gt!(last_n, 0);
+            let mut undos: Vec<_> = otto.instrs_().rev().take(last_n).rev().cloned().collect();
+            <List<_>>::inverse_multiple(&mut undos);
+            otto.apply_multiple_(undos);
+        }
+
+        // now we are ready to apply new operations - or redo the last operation if it was updated
+        for diamond_op in last_n_ops(&diamond, 1.max(curr_len - prev_len)) {
+            let instrs = convert(&mut otto, &diamond_op);
+            last_n = instrs.len();
+            for instr in instrs {
+                otto.apply_(instr);
+            }
+        }
+
+        // TODO investigate why this fails (off-by-one bug in my operation/instructions conversion?)
+        dbg!(diamond.branch.content.to_string());
+        dbg!(doc_to_string(&otto));
+        assert_eq!(diamond.branch.content.to_string(), doc_to_string(&otto));
+    }
+}
+
+#[test]
+fn make_random_change_fuzz_once() {
+    make_random_change_fuzz::<true>(321);
+}
+
+#[test]
+#[ignore]
+fn make_random_change_fuzz_forever() {
+    for seed in 0.. {
+        if seed % 10 == 0 {
+            println!("seed {seed}");
+        }
+        make_random_change_fuzz::<false>(seed);
+    }
+}
+
+// TODO make this into a fuzzing test that runs otto alongside diamond types and compares them
+fn oplog_merge_fuzz<const VERBOSE: bool>(seed: u64) {
     let mut rng = SmallRng::seed_from_u64(seed);
     let mut docs = [ListCRDT::new(), ListCRDT::new(), ListCRDT::new()];
 
@@ -31,7 +171,9 @@ fn oplog_merge_fuzz(seed: u64, verbose: bool) {
     }
 
     for _i in 0..200 {
-        if verbose { println!("\n\ni {}", _i); }
+        if VERBOSE {
+            println!("\n\ni {}", _i);
+        }
 
         // for (idx, d) in docs.iter().enumerate() {
         //     println!("doc {idx} length {}", d.ops.len());
@@ -65,7 +207,6 @@ fn oplog_merge_fuzz(seed: u64, verbose: bool) {
         // b.check(true);
         // println!("->c {_b_idx} length {}", b.ops.len());
 
-
         // dbg!((&a.ops, &b.ops));
 
         assert_eq!(a.oplog, b.oplog);
@@ -82,14 +223,16 @@ fn oplog_merge_fuzz(seed: u64, verbose: bool) {
 
 #[test]
 fn oplog_merge_fuzz_once() {
-    oplog_merge_fuzz(321, true);
+    oplog_merge_fuzz::<true>(321);
 }
 
 #[test]
 #[ignore]
 fn oplog_merge_fuzz_forever() {
     for seed in 0.. {
-        if seed % 10 == 0 { println!("seed {seed}"); }
-        oplog_merge_fuzz(seed, false);
+        if seed % 10 == 0 {
+            println!("seed {seed}");
+        }
+        oplog_merge_fuzz::<false>(seed);
     }
 }
