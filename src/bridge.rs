@@ -36,7 +36,7 @@ where
         }
     }
     pub fn gen_and_send(&mut self, rng: &mut impl Rng) {
-        let crdt_instr = if self.crdt.crdt.instrs().len() == 0 || rng.gen() {
+        let crdt_instr = if self.crdt.crdt.instrs().len() == 0 || rng.gen_range(0..5) != 0 {
             let ot_instr = StateTest::gen_trivial_instr(&*self.crdt.crdt, rng).unwrap();
             Crdt::instr_to_crdt_instr(&self.crdt.crdt, ot_instr)
         } else {
