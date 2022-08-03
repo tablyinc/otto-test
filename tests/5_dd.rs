@@ -2,7 +2,7 @@
 
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-use otto::{crdt::Crdt, list::List, register::Register, StateTest};
+use otto::{crdt::Crdt, text::Text, StateTest};
 
 fn test_crdt_differential_dataflow<T: StateTest>(rng: &mut impl Rng) {
     let mut upstream_crdt = Crdt::new(T::gen(rng));
@@ -17,15 +17,17 @@ fn test_crdt_differential_dataflow<T: StateTest>(rng: &mut impl Rng) {
         downstream_crdt.apply_(downstream_instr);
     }
 
-    for _ in 0..rng.gen_range(0..100) {
+    for _ in 0..1 {
         let upstream_instr = StateTest::gen_trivial_instr(&*upstream_crdt, rng).unwrap();
         let crdt_instr = upstream_crdt.instr_to_crdt_instr(upstream_instr.clone());
+        print!("upstream: {:?} -> ", *upstream_crdt);
         upstream_crdt.apply_(upstream_instr.clone());
+        println!("{:?}", *upstream_crdt);
 
         let downstream_instr = downstream_crdt.instr_from_crdt_instr_(crdt_instr);
+        print!("downstream: {:?} -> ", *downstream_crdt);
         downstream_crdt.apply_(downstream_instr.clone());
-
-        // println!("dd'd: {:?} -> {:?}", upstream_instr, downstream_instr);
+        println!("{:?}\n", *downstream_crdt);
     }
 }
 
@@ -39,7 +41,7 @@ fn fuzz_crdt_differential_dataflow() {
         if i % 1_000 == 0 {
             println!("{}", i);
         }
-        test_crdt_differential_dataflow::<List<List<Register<u8>>>>(rng);
+        test_crdt_differential_dataflow::<Text>(rng);
     }
 }
 
@@ -49,6 +51,6 @@ fn fuzz_crdt_differential_dataflow_short() {
     println!("seed: {seed}");
     let rng = &mut SmallRng::seed_from_u64(seed);
     for _ in 0..100 {
-        test_crdt_differential_dataflow::<List<List<Register<u8>>>>(rng);
+        test_crdt_differential_dataflow::<Text>(rng);
     }
 }

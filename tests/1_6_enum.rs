@@ -2,9 +2,18 @@
 
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-use otto::{crdt::Crdt, list::List, StateTest};
+use otto::{crdt::Crdt, list::List, settable::Settable as Register, text::Text, State, StateTest};
 
-fn test_list<T: StateTest>(rng: &mut impl Rng) {
+#[derive(Clone, PartialEq, Eq, State, StateTest, Debug)]
+enum FooEnum {
+    A(Text),
+    B(u8),
+    C(Register<u8>),
+    D(Register<Text>),
+    E(List<(Register<u8>, Text)>),
+}
+
+fn test_enum<T: StateTest>(rng: &mut impl Rng) {
     let mut a = Crdt::new(T::gen(rng));
     let mut b = a.clone();
 
@@ -49,7 +58,7 @@ fn test_list<T: StateTest>(rng: &mut impl Rng) {
 
 #[ignore]
 #[test]
-fn fuzz_list() {
+fn fuzz_enum() {
     let seed = rand::random();
     println!("seed: {seed}");
     let rng = &mut SmallRng::seed_from_u64(seed);
@@ -57,16 +66,16 @@ fn fuzz_list() {
         if i % 100_000 == 0 {
             println!("{}", i);
         }
-        test_list::<List<u8>>(rng);
+        test_enum::<Register<FooEnum>>(rng);
     }
 }
 
 #[test]
-fn fuzz_list_short() {
+fn fuzz_enum_short() {
     let seed = rand::random();
     println!("seed: {seed}");
     let rng = &mut SmallRng::seed_from_u64(seed);
     for _ in 0..100 {
-        test_list::<List<u8>>(rng);
+        test_enum::<Register<FooEnum>>(rng);
     }
 }
