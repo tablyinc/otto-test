@@ -15,14 +15,15 @@ readme = "README.md"
 edition = "2021"
 
 [dev-dependencies]
+diamond-types = { path = "../diamond-types", version = "0.1.0" }
+
 cap = "0.1.0"
-criterion = "0.3.6"
 crdt-testdata = { git = "https://github.com/josephg/diamond-types/", rev = "316032a3b9fb7211704ee60f67cdde8824d24150" }
+criterion = "0.3.6"
 
 [dependencies]
 otto = { path = "../otto", version = "0.1.0" }
 
-diamond-types = { git = "https://github.com/josephg/diamond-types/", rev = "316032a3b9fb7211704ee60f67cdde8824d24150" }
 all_asserts = "2"
 itertools = "0.10"
 jemallocator = "0.5"
