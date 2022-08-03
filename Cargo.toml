@@ -15,11 +15,12 @@ readme = "README.md"
 edition = "2021"
 
 [dev-dependencies]
-diamond-types = { path = "../diamond-types", version = "0.1.0" }
-
 cap = "0.1.0"
+# this revision is the tip of master (as of this writing) in Seph's repo
 crdt-testdata = { git = "https://github.com/josephg/diamond-types/", rev = "316032a3b9fb7211704ee60f67cdde8824d24150" }
 criterion = "0.3.6"
+# this revision is our forked patch on top of the tip of master (as of this writing) from Seph's repo
+diamond-types = { git = "https://github.com/tablyinc/diamond-types/", rev = "7d9a9ac8c11d3eb0454ba9065e5c115952e856e8" }
 
 [dependencies]
 otto = { path = "../otto", version = "0.1.0" }
