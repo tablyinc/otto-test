@@ -4,7 +4,7 @@ use itertools::Itertools;
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 use random_branch::branch_using;
 
-use otto::{list::List, register::Register, StateTest};
+use otto::{list::List, settable::Settable as Register, StateTest};
 
 use otto_test::{channel::channel, crdt_client::CrdtClient};
 

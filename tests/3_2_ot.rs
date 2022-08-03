@@ -4,7 +4,7 @@ use itertools::{multizip as zip, Itertools};
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 use random_branch::branch_using;
 
-use otto::{list::List, register::Register, text::Text, StateTest};
+use otto::{list::List, settable::Settable as Register, text::Text, StateTest};
 
 use otto_test::{channel::channel, ot_client::OtClient, ot_server::OtServer};
 
