@@ -33,60 +33,56 @@ use otto::{
 };
 use rand::prelude::*;
 
+struct CharRange(pub Range<usize>);
+struct Utf8Range(pub Range<usize>);
+
 fn last_n_ops(crdt: &ListCRDT, n: usize) -> impl Iterator<Item = Operation> + '_ {
     crdt.oplog.operations.0[crdt.oplog.operations.0.len() - n..]
         .iter()
         .map(|op| op.1.to_operation(&crdt.oplog))
 }
 
-fn get_char_range(op: &Operation) -> Range<usize> {
-    if op.loc.fwd {
-        Range {
-            start: op.loc.span.start,
-            end: op.loc.span.end,
-        }
-    } else {
-        Range {
-            start: op.loc.span.end,
-            end: op.loc.span.start,
-        }
-    }
+fn get_char_range(op: &Operation) -> CharRange {
+    CharRange(Range {
+        start: op.loc.span.start.min(op.loc.span.end),
+        end: op.loc.span.start.max(op.loc.span.end),
+    })
 }
 
-fn to_utf8_range(doc: &List<u8>, char_range: &Range<usize>) -> Range<usize> {
+fn to_utf8_range(doc: &List<u8>, char_range: &CharRange) -> Utf8Range {
     let string = doc_to_string(&doc);
     let offset = string
         .chars()
-        .take(char_range.start)
-        .collect::<String>()
-        .len();
-    let span = string
+        .take(char_range.0.start)
+        .map(|char| char.len_utf8())
+        .sum();
+    let span: usize = string
         .chars()
-        .skip(char_range.start)
-        .take(char_range.end - char_range.start)
-        .collect::<String>()
-        .len();
-    offset..offset + span
+        .skip(char_range.0.start)
+        .take(char_range.0.end - char_range.0.start)
+        .map(|char| char.len_utf8())
+        .sum();
+    Utf8Range(offset..offset + span)
 }
 
 fn convert(crdt: &Crdt<List<u8>>, op: &Operation) -> Vec<ListInstr<u8>> {
     debug_assert!(op.content.is_some());
     let mut ops = vec![];
     let mut doc = (**crdt).clone();
+    let char_range = get_char_range(&op);
+    let utf8_range = to_utf8_range(&doc, &char_range);
     match op.kind {
         OpKind::Ins => {
             debug_assert!(op.loc.fwd);
             for (i, x) in op.content.as_ref().unwrap().as_bytes().iter().enumerate() {
-                let ins = doc.insert(op.loc.span.start + i, *x);
+                let ins = doc.insert(utf8_range.0.start + i, *x);
                 doc.apply(&ins);
                 ops.push(ins);
             }
         }
         OpKind::Del => {
-            let char_range = get_char_range(&op);
-            let utf8_range = to_utf8_range(&doc, &char_range);
-            for _ in 0..utf8_range.len() {
-                let del = doc.delete(utf8_range.start);
+            for _ in 0..utf8_range.0.len() {
+                let del = doc.delete(utf8_range.0.start);
                 doc.apply(&del);
                 ops.push(del);
             }
@@ -118,7 +114,7 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
         make_random_change(&mut diamond, None, 0 as _, &mut rng);
         let curr_len = diamond.oplog.operations.0.len();
 
-        // same type consecutive operations at the end get compressed into an updated last operation
+        // same type consecutive operations at the end get collapsed
         if curr_len == prev_len {
             // undo diamond types' last operation from previous run
             debug_assert_gt!(last_n, 0);
@@ -136,7 +132,12 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
             }
         }
 
-        // TODO investigate why this fails (off-by-one bug in my operation/instructions conversion?)
+        // TODO fix - it's not just operations at the end that get collapsed
+        //  e.g.
+        //  [Operation { loc: RangeRev { span: T 1..2, fwd: true }, kind: Del, content: Some("δ") }]
+        //  =>
+        //  [Operation { loc: RangeRev { span: T 1..3, fwd: true }, kind: Del, content: Some("δ↻") },
+        //   Operation { loc: RangeRev { span: T 0..1, fwd: true }, kind: Del, content: Some("Δ") }]
         dbg!(diamond.branch.content.to_string());
         dbg!(doc_to_string(&otto));
         assert_eq!(diamond.branch.content.to_string(), doc_to_string(&otto));
