@@ -18,9 +18,7 @@
 
 use std::{hash::Hash, ops::Range};
 
-use all_asserts::{
-    assert_gt, assert_le, assert_lt, debug_assert_gt, debug_assert_le, debug_assert_lt,
-};
+use all_asserts::{assert_le, assert_lt, debug_assert_le, debug_assert_lt};
 use diamond_types::list::{
     fuzzer_tools,
     fuzzer_tools::make_random_change,
@@ -40,17 +38,17 @@ struct Utf8Range(pub Range<usize>);
 
 // outside crate so can't implement as trait
 #[allow(unused)] // TODO remove
-fn not(op: &Operation) -> Operation {
-    let mut op = op.clone();
-    if !op.loc.fwd {
-        (op.loc.span.start, op.loc.span.end) = (op.loc.span.end, op.loc.span.start);
-        op.loc.fwd = true;
-    }
-    op.kind = match op.kind {
+fn not(op: Operation) -> Operation {
+    let mut nop = op.clone();
+    // TODO comment about not being one-to-one
+    nop.loc.fwd = true;
+    nop.loc.span.start = op.loc.span.start.min(op.loc.span.end);
+    nop.loc.span.end = op.loc.span.start.max(op.loc.span.end);
+    nop.kind = match op.kind {
         OpKind::Ins => OpKind::Del,
         OpKind::Del => OpKind::Ins,
     };
-    op
+    nop
 }
 
 fn diff_first_idx(self_: &OpLog, other: &OpLog) -> Option<usize> {
@@ -64,10 +62,10 @@ fn diff_first_idx(self_: &OpLog, other: &OpLog) -> Option<usize> {
     None
 }
 
-fn last_n_ops(crdt: &ListCRDT, n: usize) -> impl Iterator<Item = Operation> + '_ {
-    crdt.oplog.operations.0[crdt.oplog.operations.0.len() - n..]
+fn last_n_ops(oplog: &OpLog, n: usize) -> impl DoubleEndedIterator<Item = Operation> + '_ {
+    oplog.operations.0[oplog.operations.0.len() - n..]
         .iter()
-        .map(|op| op.1.to_operation(&crdt.oplog))
+        .map(move |op| op.1.to_operation(&oplog))
 }
 
 fn get_char_range(op: &Operation) -> CharRange {
@@ -126,50 +124,44 @@ fn doc_to_string(doc: &List<u8>) -> String {
 
 fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
     let mut rng = SmallRng::seed_from_u64(seed);
-
     let mut diamond = ListCRDT::new();
     diamond.get_or_create_agent_id("agent 0");
-
     let mut otto = <Crdt<List<u8>>>::new(List::new());
-    // how many otto instructions was diamond types' last operation
-    let mut last_n = 0;
 
-    for _i in 0..200 {
+    for i in 0..200 {
         if VERBOSE {
-            println!("\n\ni {_i}");
+            println!("\n\ni {i}");
         }
 
         let prev_oplog = diamond.oplog.clone();
         make_random_change(&mut diamond, None, 0 as _, &mut rng);
-        let n_ops = diamond.oplog.operations.0.len() - prev_oplog.operations.0.len();
+        let idx = diff_first_idx(&prev_oplog, &diamond.oplog);
 
         // same type consecutive operations at the end get collapsed
-        if let Some(idx) =  diff_first_idx(&prev_oplog, &diamond.oplog) {
-            assert_eq!(diamond.oplog.operations.0.len() - idx, 1, "unexpected operation collapsed");
-            // undo diamond types' last operation from previous run
-            debug_assert_gt!(last_n, 0);
-            let mut undos: Vec<_> = otto.instrs_().rev().take(last_n).rev().cloned().collect();
-            <List<_>>::inverse_multiple(&mut undos);
-            otto.apply_multiple_(undos);
+        if let Some(idx_) = idx {
+            let n_undos = prev_oplog.operations.0.len() - idx_;
+            // TODO add comment for why 1
+            assert_eq!(n_undos, 1, "unexpected operation collapsed");
+            // undo diamond types' operations from previous run
+            for op in last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op)) {
+                let instrs = convert(&mut otto, &op);
+                for instr in instrs {
+                    otto.apply_(instr);
+                }
+            }
         }
 
-        // now we are ready to apply new operations - or redo the last operation if it was updated
-        for op in last_n_ops(&diamond, 1.max(n_ops)) {
+        let n_dos =
+            diamond.oplog.operations.0.len() - idx.unwrap_or_else(|| prev_oplog.operations.0.len());
+
+        // now we are ready to apply new operations and/or redo last operations that were updated
+        for op in last_n_ops(&diamond.oplog, n_dos) {
             let instrs = convert(&mut otto, &op);
-            last_n = instrs.len();
             for instr in instrs {
                 otto.apply_(instr);
             }
         }
 
-        // TODO fix - it's not just operations at the end that get collapsed
-        //  e.g.
-        //  [Operation { loc: RangeRev { span: T 1..2, fwd: true }, kind: Del, content: Some("δ") }]
-        //  =>
-        //  [Operation { loc: RangeRev { span: T 1..3, fwd: true }, kind: Del, content: Some("δ↻") },
-        //   Operation { loc: RangeRev { span: T 0..1, fwd: true }, kind: Del, content: Some("Δ") }]
-        dbg!(diamond.branch.content.to_string());
-        dbg!(doc_to_string(&otto));
         assert_eq!(diamond.branch.content.to_string(), doc_to_string(&otto));
     }
 }
