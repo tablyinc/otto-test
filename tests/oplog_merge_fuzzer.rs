@@ -18,7 +18,7 @@
 
 use std::{hash::Hash, ops::Range};
 
-use all_asserts::{assert_le, assert_lt, debug_assert_le, debug_assert_lt};
+use all_asserts::{assert_lt, debug_assert_lt};
 use diamond_types::list::{
     fuzzer_tools,
     fuzzer_tools::make_random_change,
@@ -39,7 +39,7 @@ struct Utf8Range(pub Range<usize>);
 // outside crate so can't implement as trait
 fn not(op: Operation) -> Operation {
     let mut nop = op.clone();
-    // we assume forwards deletions as inserts don't have a unique inverse
+    // we create forwards deletions as inserts don't have a unique inverse
     nop.loc.fwd = true;
     nop.loc.span.start = op.loc.span.start.min(op.loc.span.end);
     nop.loc.span.end = op.loc.span.start.max(op.loc.span.end);
@@ -51,7 +51,6 @@ fn not(op: Operation) -> Operation {
 }
 
 fn diff_first_idx(self_: &OpLog, other: &OpLog) -> Option<usize> {
-    debug_assert_le!(self_.operations.0.len(), other.operations.0.len());
     for i in 0..self_.operations.0.len().min(other.operations.0.len()) {
         if self_.operations.0[i] != other.operations.0[i] {
             // neither oplog is a prefix/suffix of the other as they first differ here
@@ -121,11 +120,30 @@ fn doc_to_string(doc: &List<u8>) -> String {
     String::from_utf8((0..doc.len()).map(|at| doc[at]).collect::<Vec<_>>()).unwrap()
 }
 
+fn replicate_random_change(crdt: &mut Crdt<List<u8>>, prev_oplog: &OpLog, curr_oplog: &OpLog) {
+    let idx = diff_first_idx(&prev_oplog, &curr_oplog);
+
+    // last operation previously in the oplog may have been collapsed
+    let n_undos = if let Some(_) = idx { 1 } else { 0 };
+    let undos = last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op));
+
+    let n_dos =
+        curr_oplog.operations.0.len() - idx.unwrap_or_else(|| prev_oplog.operations.0.len());
+    let dos = last_n_ops(&curr_oplog, n_dos);
+
+    for op in undos.chain(dos) {
+        let instrs = convert(crdt, &op);
+        for instr in instrs {
+            crdt.apply_(instr);
+        }
+    }
+}
+
 fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
     let mut rng = SmallRng::seed_from_u64(seed);
     let mut diamond = ListCRDT::new();
     diamond.get_or_create_agent_id("agent 0");
-    let mut otto = <Crdt<List<u8>>>::new(List::new());
+    let mut otto = Crdt::new(List::new());
 
     for i in 0..200 {
         if VERBOSE {
@@ -134,23 +152,7 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
 
         let prev_oplog = diamond.oplog.clone();
         make_random_change(&mut diamond, None, 0 as _, &mut rng);
-        let idx = diff_first_idx(&prev_oplog, &diamond.oplog);
-
-        // last operation previously in the oplog may have been collapsed
-        let n_undos = if let Some(_) = idx { 1 } else { 0 };
-        let undos = last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op));
-
-        let n_dos =
-            diamond.oplog.operations.0.len() - idx.unwrap_or_else(|| prev_oplog.operations.0.len());
-        let dos = last_n_ops(&diamond.oplog, n_dos);
-
-        for op in undos.chain(dos) {
-            let instrs = convert(&mut otto, &op);
-            for instr in instrs {
-                otto.apply_(instr);
-            }
-        }
-
+        replicate_random_change(&mut otto, &prev_oplog, &diamond.oplog);
         assert_eq!(diamond.branch.content.to_string(), doc_to_string(&otto));
     }
 }
