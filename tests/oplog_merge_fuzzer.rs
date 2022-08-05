@@ -18,12 +18,14 @@
 
 use std::{hash::Hash, ops::Range};
 
-use all_asserts::{assert_gt, debug_assert_gt};
+use all_asserts::{
+    assert_gt, assert_le, assert_lt, debug_assert_gt, debug_assert_le, debug_assert_lt,
+};
 use diamond_types::list::{
     fuzzer_tools,
     fuzzer_tools::make_random_change,
     operation::{OpKind, Operation},
-    ListCRDT,
+    ListCRDT, OpLog,
 };
 use hashbag::HashBag;
 use otto::{
@@ -35,6 +37,32 @@ use rand::prelude::*;
 
 struct CharRange(pub Range<usize>);
 struct Utf8Range(pub Range<usize>);
+
+// outside crate so can't implement as trait
+#[allow(unused)] // TODO remove
+fn not(op: &Operation) -> Operation {
+    let mut op = op.clone();
+    if !op.loc.fwd {
+        (op.loc.span.start, op.loc.span.end) = (op.loc.span.end, op.loc.span.start);
+        op.loc.fwd = true;
+    }
+    op.kind = match op.kind {
+        OpKind::Ins => OpKind::Del,
+        OpKind::Del => OpKind::Ins,
+    };
+    op
+}
+
+fn diff_first_idx(self_: &OpLog, other: &OpLog) -> Option<usize> {
+    debug_assert_le!(self_.operations.0.len(), other.operations.0.len());
+    for i in 0..self_.operations.0.len().min(other.operations.0.len()) {
+        if self_.operations.0[i] != other.operations.0[i] {
+            // neither oplog is a prefix/suffix of the other as they first differ here
+            return Some(i);
+        }
+    }
+    None
+}
 
 fn last_n_ops(crdt: &ListCRDT, n: usize) -> impl Iterator<Item = Operation> + '_ {
     crdt.oplog.operations.0[crdt.oplog.operations.0.len() - n..]
@@ -74,6 +102,7 @@ fn convert(crdt: &Crdt<List<u8>>, op: &Operation) -> Vec<ListInstr<u8>> {
     match op.kind {
         OpKind::Ins => {
             debug_assert!(op.loc.fwd);
+            debug_assert_lt!(op.loc.span.start, op.loc.span.end);
             for (i, x) in op.content.as_ref().unwrap().as_bytes().iter().enumerate() {
                 let ins = doc.insert(utf8_range.0.start + i, *x);
                 doc.apply(&ins);
@@ -110,12 +139,13 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
             println!("\n\ni {_i}");
         }
 
-        let prev_len = diamond.oplog.operations.0.len();
+        let prev_oplog = diamond.oplog.clone();
         make_random_change(&mut diamond, None, 0 as _, &mut rng);
-        let curr_len = diamond.oplog.operations.0.len();
+        let n_ops = diamond.oplog.operations.0.len() - prev_oplog.operations.0.len();
 
         // same type consecutive operations at the end get collapsed
-        if curr_len == prev_len {
+        if let Some(idx) =  diff_first_idx(&prev_oplog, &diamond.oplog) {
+            assert_eq!(diamond.oplog.operations.0.len() - idx, 1, "unexpected operation collapsed");
             // undo diamond types' last operation from previous run
             debug_assert_gt!(last_n, 0);
             let mut undos: Vec<_> = otto.instrs_().rev().take(last_n).rev().cloned().collect();
@@ -124,8 +154,8 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
         }
 
         // now we are ready to apply new operations - or redo the last operation if it was updated
-        for diamond_op in last_n_ops(&diamond, 1.max(curr_len - prev_len)) {
-            let instrs = convert(&mut otto, &diamond_op);
+        for op in last_n_ops(&diamond, 1.max(n_ops)) {
+            let instrs = convert(&mut otto, &op);
             last_n = instrs.len();
             for instr in instrs {
                 otto.apply_(instr);
