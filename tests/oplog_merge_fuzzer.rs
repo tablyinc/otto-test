@@ -37,10 +37,9 @@ struct CharRange(pub Range<usize>);
 struct Utf8Range(pub Range<usize>);
 
 // outside crate so can't implement as trait
-#[allow(unused)] // TODO remove
 fn not(op: Operation) -> Operation {
     let mut nop = op.clone();
-    // TODO comment about not being one-to-one
+    // we assume forwards deletions as inserts don't have a unique inverse
     nop.loc.fwd = true;
     nop.loc.span.start = op.loc.span.start.min(op.loc.span.end);
     nop.loc.span.end = op.loc.span.start.max(op.loc.span.end);
@@ -137,25 +136,15 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
         make_random_change(&mut diamond, None, 0 as _, &mut rng);
         let idx = diff_first_idx(&prev_oplog, &diamond.oplog);
 
-        // same type consecutive operations at the end get collapsed
-        if let Some(idx_) = idx {
-            let n_undos = prev_oplog.operations.0.len() - idx_;
-            // TODO add comment for why 1
-            assert_eq!(n_undos, 1, "unexpected operation collapsed");
-            // undo diamond types' operations from previous run
-            for op in last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op)) {
-                let instrs = convert(&mut otto, &op);
-                for instr in instrs {
-                    otto.apply_(instr);
-                }
-            }
-        }
+        // last operation previously in the oplog may have been collapsed
+        let n_undos = if let Some(_) = idx { 1 } else { 0 };
+        let undos = last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op));
 
         let n_dos =
             diamond.oplog.operations.0.len() - idx.unwrap_or_else(|| prev_oplog.operations.0.len());
+        let dos = last_n_ops(&diamond.oplog, n_dos);
 
-        // now we are ready to apply new operations and/or redo last operations that were updated
-        for op in last_n_ops(&diamond.oplog, n_dos) {
+        for op in undos.chain(dos) {
             let instrs = convert(&mut otto, &op);
             for instr in instrs {
                 otto.apply_(instr);
