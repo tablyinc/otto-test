@@ -16,6 +16,8 @@
 //! OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 //! CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+#![feature(generic_arg_infer)]
+
 use std::{hash::Hash, ops::Range};
 
 use all_asserts::{assert_lt, debug_assert_lt};
@@ -26,6 +28,7 @@ use diamond_types::list::{
     ListCRDT, OpLog,
 };
 use hashbag::HashBag;
+use index_many::generic::{get_many_mut, UnsortedIndices};
 use otto::{
     crdt::Crdt,
     list::{List, ListInstr},
@@ -200,66 +203,63 @@ fn add_missing_operations_from_converges() {
     }
 }
 
-// TODO make this into a fuzzing test that runs otto alongside diamond types and compares them
 fn oplog_merge_fuzz<const VERBOSE: bool>(seed: u64) {
     let mut rng = SmallRng::seed_from_u64(seed);
-    let mut docs = [ListCRDT::new(), ListCRDT::new(), ListCRDT::new()];
+    let mut diamonds = [ListCRDT::new(), ListCRDT::new(), ListCRDT::new()];
+    let mut ottos = [
+        Crdt::new(List::new()),
+        Crdt::new(List::new()),
+        Crdt::new(List::new()),
+    ];
 
-    for i in 0..docs.len() {
-        // docs[i].get_or_create_agent_id(format!("agent {}", i).as_str());
-        for a in 0..docs.len() {
-            docs[i].get_or_create_agent_id(format!("agent {}", a).as_str());
+    for i in 0..diamonds.len() {
+        for a in 0..diamonds.len() {
+            diamonds[i].get_or_create_agent_id(format!("agent {a}").as_str());
         }
     }
 
-    for _i in 0..200 {
+    for i in 0..200 {
         if VERBOSE {
-            println!("\n\ni {}", _i);
+            println!("\n\ni {i}");
         }
 
-        // for (idx, d) in docs.iter().enumerate() {
-        //     println!("doc {idx} length {}", d.ops.len());
-        // }
-
-        // Generate some operations
-        for _j in 0..2 {
-            let idx = rng.gen_range(0..docs.len());
-
-            // This should + does also work if we set idx=0 and use the same agent for all changes.
-            // make_random_change(&mut docs[idx], None, 0, &mut rng);
-            make_random_change(&mut docs[idx], None, idx as _, &mut rng);
+        for _ in 0..2 {
+            let idx = rng.gen_range(0..diamonds.len());
+            let prev_oplog = diamonds[idx].oplog.clone();
+            make_random_change(&mut diamonds[idx], None, idx as _, &mut rng);
+            replicate_random_change(&mut ottos[idx], &prev_oplog, &diamonds[idx].oplog);
+            debug_assert_eq!(
+                diamonds[idx].branch.content.to_string(),
+                doc_to_string(&ottos[idx])
+            );
         }
 
-        // for (idx, d) in docs.iter().enumerate() {
-        //     println!("with changes {idx} length {}", d.ops.len());
-        // }
+        let (idx_a, a_diamond, idx_b, b_diamond) = fuzzer_tools::choose_2(&mut diamonds, &mut rng);
+        let [a_otto, b_otto] = get_many_mut(&mut ottos, UnsortedIndices([idx_a, idx_b])).unwrap();
 
-        let (_a_idx, a, _b_idx, b) = fuzzer_tools::choose_2(&mut docs, &mut rng);
+        a_diamond
+            .oplog
+            .add_missing_operations_from(&b_diamond.oplog);
+        b_diamond
+            .oplog
+            .add_missing_operations_from(&a_diamond.oplog);
+        debug_assert_eq!(a_diamond.oplog, b_diamond.oplog);
 
-        // a.ops.dbg_print_assignments_and_ops();
-        // println!("\n");
-        // b.ops.dbg_print_assignments_and_ops();
+        a_diamond
+            .branch
+            .merge(&a_diamond.oplog, &a_diamond.oplog.version);
+        b_diamond
+            .branch
+            .merge(&b_diamond.oplog, &b_diamond.oplog.version);
+        debug_assert_eq!(a_diamond.branch.content, b_diamond.branch.content);
 
-        // dbg!((&a.ops, &b.ops));
-        a.oplog.add_missing_operations_from(&b.oplog);
-        // a.check(true);
-        // println!("->c {_a_idx} length {}", a.ops.len());
+        add_missing_operations_from(a_otto, b_otto);
+        add_missing_operations_from(b_otto, a_otto);
+        debug_assert_eq!(doc_to_string(&a_otto), doc_to_string(&b_otto));
 
-        b.oplog.add_missing_operations_from(&a.oplog);
-        // b.check(true);
-        // println!("->c {_b_idx} length {}", b.ops.len());
-
-        // dbg!((&a.ops, &b.ops));
-
-        assert_eq!(a.oplog, b.oplog);
-
-        a.branch.merge(&a.oplog, &a.oplog.version);
-        b.branch.merge(&b.oplog, &b.oplog.version);
-        assert_eq!(a.branch.content, b.branch.content);
-    }
-
-    for doc in &docs {
-        doc.dbg_check(true);
+        // TODO investigate why the document state we converge to is different from Seph's
+        assert_eq!(a_diamond.branch.content.to_string(), doc_to_string(&a_otto));
+        assert_eq!(b_diamond.branch.content.to_string(), doc_to_string(&b_otto));
     }
 }
 
