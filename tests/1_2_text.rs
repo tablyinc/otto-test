@@ -2,8 +2,7 @@
 
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-use otto::crdt::Crdt;
-use otto::{text::Text, StateTest};
+use otto::{crdt::Crdt, text::Text, StateTest};
 
 fn test_list<T: StateTest>(rng: &mut impl Rng) {
     let mut a = Crdt::new(T::gen(rng));

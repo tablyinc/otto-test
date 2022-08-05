@@ -1,10 +1,23 @@
-#![allow(clippy::if_not_else, clippy::range_plus_one)]
+#![allow(
+    clippy::if_not_else,
+    clippy::range_plus_one,
+    clippy::derive_partial_eq_without_eq
+)]
 
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-use otto::{crdt::Crdt, list::List, StateTest};
+use otto::{crdt::Crdt, list::List, settable::Settable as Register, text::Text, State, StateTest};
 
-fn test_list<T: StateTest>(rng: &mut impl Rng) {
+#[derive(Clone, PartialEq, Eq, State, StateTest, Debug)]
+struct FooStruct {
+    a: Text,
+    b: u8,
+    c: Register<u8>,
+    d: Register<Text>,
+    e: List<(Register<u8>, Text)>,
+}
+
+fn test_struct<T: StateTest>(rng: &mut impl Rng) {
     let mut a = Crdt::new(T::gen(rng));
     let mut b = a.clone();
 
@@ -49,7 +62,7 @@ fn test_list<T: StateTest>(rng: &mut impl Rng) {
 
 #[ignore]
 #[test]
-fn fuzz_list() {
+fn fuzz_struct() {
     let seed = rand::random();
     println!("seed: {seed}");
     let rng = &mut SmallRng::seed_from_u64(seed);
@@ -57,16 +70,16 @@ fn fuzz_list() {
         if i % 100_000 == 0 {
             println!("{}", i);
         }
-        test_list::<List<u8>>(rng);
+        test_struct::<FooStruct>(rng);
     }
 }
 
 #[test]
-fn fuzz_list_short() {
+fn fuzz_struct_short() {
     let seed = rand::random();
     println!("seed: {seed}");
     let rng = &mut SmallRng::seed_from_u64(seed);
     for _ in 0..100 {
-        test_list::<List<u8>>(rng);
+        test_struct::<FooStruct>(rng);
     }
 }

@@ -4,10 +4,11 @@ use itertools::{multizip as zip, Itertools};
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 use random_branch::branch_using;
 
-use otto::{list::List, register::Register, StateTest};
+use otto::{list::List, settable::Settable as Register, StateTest};
 
-use otto_test::bridge::CrdtClientOtServer;
-use otto_test::{channel::channel, crdt_client::CrdtClient, ot_client::OtClient};
+use otto_test::{
+    bridge::CrdtClientOtServer, channel::channel, crdt_client::CrdtClient, ot_client::OtClient,
+};
 
 fn test_crdt_ot<T: StateTest>(rng: &mut impl Rng) {
     let clients_crdt = 5;
