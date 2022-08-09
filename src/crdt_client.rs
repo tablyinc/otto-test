@@ -1,8 +1,7 @@
-use rand::Rng;
-
 use otto::{
 	crdt::{Crdt, CrdtInstr}, State, StateTest
 };
+use rand::Rng;
 
 use crate::channel::{Receiver, Sender};
 

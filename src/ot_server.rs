@@ -1,7 +1,7 @@
-use rand::{seq::IteratorRandom, Rng};
 use std::collections::VecDeque;
 
 use otto::State;
+use rand::{seq::IteratorRandom, Rng};
 
 use crate::channel::{Receiver, Sender};
 

@@ -1,8 +1,7 @@
 #![allow(clippy::if_not_else, clippy::range_plus_one)]
 
-use rand::{rngs::SmallRng, Rng, SeedableRng};
-
 use otto::{crdt::Crdt, list::List, settable::Settable as Register, text::Text, State, StateTest};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 #[derive(Clone, PartialEq, Eq, State, StateTest, Debug)]
 enum FooEnum {

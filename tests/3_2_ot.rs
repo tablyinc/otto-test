@@ -1,10 +1,9 @@
 #![allow(clippy::if_not_else, clippy::range_plus_one)]
 
 use itertools::{multizip as zip, Itertools};
+use otto::{list::List, settable::Settable as Register, text::Text, StateTest};
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 use random_branch::branch_using;
-
-use otto::{list::List, settable::Settable as Register, text::Text, StateTest};
 
 use otto_test::{channel::channel, ot_client::OtClient, ot_server::OtServer};
 

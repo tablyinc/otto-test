@@ -1,8 +1,7 @@
 #![allow(clippy::if_not_else, clippy::range_plus_one)]
 
-use rand::{rngs::SmallRng, Rng, SeedableRng};
-
 use otto::{crdt::Crdt, list::List, StateTest};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 fn test_list<T: StateTest>(rng: &mut impl Rng) {
 	let mut a = Crdt::new(T::gen(rng));

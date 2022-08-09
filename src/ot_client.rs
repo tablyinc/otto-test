@@ -1,7 +1,7 @@
-use rand::Rng;
 use std::collections::VecDeque;
 
 use otto::{State, StateTest};
+use rand::Rng;
 
 use crate::channel::{Receiver, Sender};
 

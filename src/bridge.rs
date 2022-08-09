@@ -1,8 +1,7 @@
-use rand::{seq::IteratorRandom, Rng};
-
 use otto::{
 	crdt::{Crdt, CrdtInstr}, State, StateTest
 };
+use rand::{seq::IteratorRandom, Rng};
 
 use crate::{
 	channel::{Receiver, Sender}, crdt_client::CrdtClient, ot_server::{OtServer, OtServerClient}
