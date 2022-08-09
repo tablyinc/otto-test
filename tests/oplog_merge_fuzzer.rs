@@ -78,16 +78,35 @@ where
 	}
 }
 
-#[test]
-fn add_missing_operations_from_converges() {
-	let rng = &mut SmallRng::seed_from_u64(42);
-	for _ in 0..100 {
+fn add_missing_operations_from_fuzz<const VERBOSE: bool>(seed: u64) {
+	let rng = &mut SmallRng::seed_from_u64(seed);
+	for i in 0..200 {
+		if VERBOSE {
+			println!("\n\ni {i}");
+		}
+
 		let state = <List<u64>>::gen(rng);
 		let mut crdt_a = Crdt::gen_from_state(rng, &state, 10);
 		let mut crdt_b = Crdt::gen_from_state(rng, &state, 10);
 		add_missing_operations_from(&mut crdt_a, &crdt_b);
 		add_missing_operations_from(&mut crdt_b, &crdt_a);
 		assert!(crdt_a.converges(&crdt_b), "{:?}\n{:?}", crdt_a, crdt_b);
+	}
+}
+
+#[test]
+fn add_missing_operations_from_fuzz_once() {
+	add_missing_operations_from_fuzz::<true>(321);
+}
+
+#[test]
+#[ignore]
+fn add_missing_operations_from_fuzz_forever() {
+	for seed in 0.. {
+		if seed % 10 == 0 {
+			println!("seed {seed}");
+		}
+		add_missing_operations_from_fuzz::<false>(seed);
 	}
 }
 
@@ -136,7 +155,7 @@ fn oplog_merge_fuzz<const VERBOSE: bool>(seed: u64) {
 }
 
 #[test]
-#[ignore] // TODO investigate why the document state we converge to is different from Seph's
+#[ignore] // TODO investigate why otto converges to a different document state than diamond types
 fn oplog_merge_fuzz_once() {
 	oplog_merge_fuzz::<true>(321);
 }
