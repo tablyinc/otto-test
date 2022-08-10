@@ -149,8 +149,8 @@ fn oplog_merge_fuzz<const VERBOSE: bool>(seed: u64) {
 		add_missing_operations_from(b_otto, a_otto);
 		debug_assert_eq!(doc_to_string(&a_otto), doc_to_string(&b_otto));
 
+		debug_assert_eq!(a_diamond.branch.content.to_string().chars().collect::<HashBag<_>>(), doc_to_string(&a_otto).chars().collect(), "diamond types: {:?}\notto: {:?}", a_diamond.branch.content.to_string(), doc_to_string(&a_otto));
 		assert_eq!(a_diamond.branch.content.to_string(), doc_to_string(&a_otto));
-		assert_eq!(b_diamond.branch.content.to_string(), doc_to_string(&b_otto));
 	}
 }
 
