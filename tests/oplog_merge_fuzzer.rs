@@ -16,8 +16,6 @@
 //! OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 //! CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#![feature(generic_arg_infer)]
-
 use std::hash::Hash;
 
 use diamond_types::list::{
