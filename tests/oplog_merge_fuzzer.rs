@@ -137,6 +137,12 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		let (idx_a, a_diamond, idx_b, b_diamond) = choose_2(&mut diamonds, &mut rng);
 		let [a_otto, b_otto] = get_many_mut(&mut ottos, UnsortedIndices([idx_a, idx_b])).unwrap();
 
+		if VERBOSE {
+			println!("Diamond types - before merge:");
+			println!("{}", a_diamond.branch.content.to_string());
+			println!("{}", b_diamond.branch.content.to_string());
+		}
+
 		a_diamond.oplog.add_missing_operations_from(&b_diamond.oplog);
 		b_diamond.oplog.add_missing_operations_from(&a_diamond.oplog);
 		debug_assert_eq!(a_diamond.oplog, b_diamond.oplog);
@@ -145,14 +151,27 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		b_diamond.branch.merge(&b_diamond.oplog, &b_diamond.oplog.version);
 		debug_assert_eq!(a_diamond.branch.content, b_diamond.branch.content);
 
+		if VERBOSE {
+			println!("After merge:");
+			println!("{}", a_diamond.branch.content.to_string());
+			println!("Otto - before merge:");
+			println!("{}", doc_to_string(&a_otto));
+			println!("{}", doc_to_string(&b_otto));
+		}
+
 		add_missing_operations_from(a_otto, b_otto);
 		add_missing_operations_from(b_otto, a_otto);
 		debug_assert_eq!(doc_to_string(&a_otto), doc_to_string(&b_otto));
 
+		if VERBOSE {
+			println!("After merge:");
+			println!("{}", doc_to_string(&a_otto));
+		}
+
 		debug_assert_eq!(
 			a_diamond.branch.content.to_string().chars().collect::<HashBag<_>>(),
 			doc_to_string(&a_otto).chars().collect(),
-			"diamond types: {:?}\notto: {:?}",
+			"diamond types: {}\notto: {}",
 			a_diamond.branch.content.to_string(),
 			doc_to_string(&a_otto)
 		);
