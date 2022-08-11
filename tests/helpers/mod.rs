@@ -82,17 +82,23 @@ fn convert(crdt: &Crdt<List<u8>>, op: &Operation) -> Vec<ListInstr<u8>> {
 	ops
 }
 
-pub fn replicate_random_change(crdt: &mut Crdt<List<u8>>, prev_oplog: &OpLog, curr_oplog: &OpLog) {
+pub fn replicate_random_change<const VERBOSE: bool>(crdt: &mut Crdt<List<u8>>, prev_oplog: &OpLog, curr_oplog: &OpLog) {
 	let idx = diff_first_idx(&prev_oplog, &curr_oplog);
+	if VERBOSE && idx.is_some() {
+		println!("diamond types collapsed last operation");
+	}
 
 	// last operation previously in the oplog may have been collapsed
-	let n_undos = if let Some(_) = idx { 1 } else { 0 };
+	let n_undos = idx.is_some() as usize;
 	let undos = last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op));
 
 	let n_dos = curr_oplog.operations.0.len() - idx.unwrap_or_else(|| prev_oplog.operations.0.len());
 	let dos = last_n_ops(&curr_oplog, n_dos);
 
 	for op in undos.chain(dos) {
+		if VERBOSE {
+			println!("{op:?}");
+		}
 		let instrs = convert(crdt, &op);
 		for instr in instrs {
 			crdt.apply_(instr);

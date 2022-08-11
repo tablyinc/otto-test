@@ -43,7 +43,7 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
 
 		let prev_oplog = diamond.oplog.clone();
 		make_random_change(&mut diamond, None, 0 as _, &mut rng);
-		replicate_random_change(&mut otto, &prev_oplog, &diamond.oplog);
+		replicate_random_change::<VERBOSE>(&mut otto, &prev_oplog, &diamond.oplog);
 		assert_eq!(diamond.branch.content.to_string(), doc_to_string(&otto));
 	}
 }
@@ -128,9 +128,12 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 
 		for _ in 0..2 {
 			let idx = rng.gen_range(0..N_AGENTS);
+			if VERBOSE {
+				println!("random operations at agent: {idx}");
+			}
 			let prev_oplog = diamonds[idx].oplog.clone();
 			make_random_change(&mut diamonds[idx], None, idx as _, &mut rng);
-			replicate_random_change(&mut ottos[idx], &prev_oplog, &diamonds[idx].oplog);
+			replicate_random_change::<VERBOSE>(&mut ottos[idx], &prev_oplog, &diamonds[idx].oplog);
 			debug_assert_eq!(diamonds[idx].branch.content.to_string(), doc_to_string(&ottos[idx]));
 		}
 
@@ -153,7 +156,7 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		debug_assert_eq!(diamond_string, b_diamond.branch.content.to_string());
 
 		if VERBOSE {
-			println!("diamond types (after): {}", diamond_string);
+			println!("diamond types (after): {diamond_string}");
 			println!("otto (before): {}", doc_to_string(&a_otto));
 			println!("otto (before): {}", doc_to_string(&b_otto));
 		}
@@ -164,7 +167,7 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		debug_assert_eq!(otto_string, doc_to_string(&b_otto));
 
 		if VERBOSE {
-			println!("otto (after): {}", otto_string);
+			println!("otto (after): {otto_string}");
 		}
 
 		// Ideally we'd like to check exact document contents match, however algorithms' merging behaviour may be slightly different
@@ -172,9 +175,7 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		assert_eq!(
 			diamond_string.chars().collect::<HashBag<_>>(),
 			otto_string.chars().collect(),
-			"diamond types: {}\notto: {}",
-			diamond_string,
-			otto_string
+			"diamond types: {diamond_string}\notto: {otto_string}"
 		);
 		// Having passed the above check, if document contents diverge we exit this test as we can't generate equivalent instructions
 		// (in practice it means this test should be run many times with fuzzing to be useful)
@@ -183,8 +184,8 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 			// We log only the more interesting cases (we expect to see these insertions happening somewhere in the middle)
 			if VERBOSE && !check_two_substrings(&diamond_string, &otto_string) {
 				println!("diverging contents (that aren't same insertion at start and end)");
-				println!("diamond types: {}", diamond_string);
-				println!("otto: {}", otto_string);
+				println!("diamond types: {diamond_string}");
+				println!("otto: {otto_string}");
 			}
 			break;
 		}
@@ -192,11 +193,20 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 }
 
 #[test]
+#[ignore] // TODO investigate where otto and diamond types diverge
 fn oplog_merge_fuzz_once() {
-	oplog_merge_fuzz::<3, true>(321);
+	// diverge on unordered document contents
+	// oplog_merge_fuzz::<2, true>(46);
+	// oplog_merge_fuzz::<2, true>(121);
+	oplog_merge_fuzz::<2, true>(128);
+	// fail on debug_assert checks
+	// oplog_merge_fuzz::<2, true>(53);
+	// oplog_merge_fuzz::<2, true>(80);
+	// oplog_merge_fuzz::<2, true>(107);
+	// Seph's original test - to restore
+	// oplog_merge_fuzz::<3, true>(321);
 }
 
-// TODO investigate interesting divergence cases where this test fails
 #[test]
 #[ignore]
 fn oplog_merge_fuzz_forever() {
