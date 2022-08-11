@@ -26,7 +26,7 @@ use index_many::generic::{get_many_mut, UnsortedIndices};
 use otto::{crdt::Crdt, list::List, State, StateTest};
 use rand::prelude::*;
 
-use helpers::{doc_to_string, replicate_random_change};
+use helpers::{check_two_substrings, doc_to_string, replicate_random_change};
 
 mod helpers;
 
@@ -138,9 +138,8 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		let [a_otto, b_otto] = get_many_mut(&mut ottos, UnsortedIndices([idx_a, idx_b])).unwrap();
 
 		if VERBOSE {
-			println!("Diamond types - before merge:");
-			println!("{}", a_diamond.branch.content.to_string());
-			println!("{}", b_diamond.branch.content.to_string());
+			println!("diamond types (before): {}", a_diamond.branch.content.to_string());
+			println!("diamond types (before): {}", b_diamond.branch.content.to_string());
 		}
 
 		a_diamond.oplog.add_missing_operations_from(&b_diamond.oplog);
@@ -150,36 +149,43 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		a_diamond.branch.merge(&a_diamond.oplog, &a_diamond.oplog.version);
 		b_diamond.branch.merge(&b_diamond.oplog, &b_diamond.oplog.version);
 		debug_assert_eq!(a_diamond.branch.content, b_diamond.branch.content);
+		let diamond_string = a_diamond.branch.content.to_string();
+		debug_assert_eq!(diamond_string, b_diamond.branch.content.to_string());
 
 		if VERBOSE {
-			println!("After merge:");
-			println!("{}", a_diamond.branch.content.to_string());
-			println!("Otto - before merge:");
-			println!("{}", doc_to_string(&a_otto));
-			println!("{}", doc_to_string(&b_otto));
+			println!("diamond types (after): {}", diamond_string);
+			println!("otto (before): {}", doc_to_string(&a_otto));
+			println!("otto (before): {}", doc_to_string(&b_otto));
 		}
 
 		add_missing_operations_from(a_otto, b_otto);
 		add_missing_operations_from(b_otto, a_otto);
-		debug_assert_eq!(doc_to_string(&a_otto), doc_to_string(&b_otto));
+		let otto_string = doc_to_string(&a_otto);
+		debug_assert_eq!(otto_string, doc_to_string(&b_otto));
 
 		if VERBOSE {
-			println!("After merge:");
-			println!("{}", doc_to_string(&a_otto));
+			println!("otto (after): {}", otto_string);
 		}
 
 		// Ideally we'd like to check exact document contents match, however algorithms' merging behaviour may be slightly different
-		// so even when all changes are incorporated they may appear in different order, hence we check contents irrespective of order
+		// when changes are correctly incorporated they may appear in different order, hence contents must match irrespective of order
 		assert_eq!(
-			a_diamond.branch.content.to_string().chars().collect::<HashBag<_>>(),
-			doc_to_string(&a_otto).chars().collect(),
+			diamond_string.chars().collect::<HashBag<_>>(),
+			otto_string.chars().collect(),
 			"diamond types: {}\notto: {}",
-			a_diamond.branch.content.to_string(),
-			doc_to_string(&a_otto)
+			diamond_string,
+			otto_string
 		);
-		// Having passed the above checks, if document contents diverge we exit this test as we can't generate equivalent instructions
+		// Having passed the above check, if document contents diverge we exit this test as we can't generate equivalent instructions
 		// (in practice it means this test should be run many times with fuzzing to be useful)
-		if a_diamond.branch.content.to_string() != doc_to_string(&a_otto) {
+		if diamond_string != otto_string {
+			// Contents diverge when they had the same insertions, in most cases one at the start while the other at the end
+			// We log only the more interesting cases (we expect to see these insertions happening somewhere in the middle)
+			if VERBOSE && !check_two_substrings(&diamond_string, &otto_string) {
+				println!("diverging contents (that aren't same insertion at start and end)");
+				println!("diamond types: {}", diamond_string);
+				println!("otto: {}", otto_string);
+			}
 			break;
 		}
 	}

@@ -99,3 +99,49 @@ pub fn replicate_random_change(crdt: &mut Crdt<List<u8>>, prev_oplog: &OpLog, cu
 		}
 	}
 }
+
+/// Checks if strings are the same two sub-strings appended in different (or same) order
+pub fn check_two_substrings(self_: &String, other: &String) -> bool {
+	if self_.is_empty() && other.is_empty() {
+		return true;
+	}
+
+	let self_chars: Vec<_> = self_.chars().collect();
+	let other_chars: Vec<_> = other.chars().collect();
+
+	if self_chars.len() != other_chars.len() {
+		return false;
+	}
+
+	for i in 0..self_chars.len() {
+		let (self_lhs, self_rhs) = self_chars.split_at(i);
+		let (other_lhs, other_rhs) = other_chars.split_at(self_chars.len() - i);
+		if self_lhs == other_rhs && self_rhs == other_lhs {
+			return true;
+		}
+	}
+
+	false
+}
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	#[test]
+	fn test_check_two_substrings() {
+		assert!(check_two_substrings(&String::from(""), &String::from("")));
+		assert!(check_two_substrings(&String::from("A"), &String::from("A")));
+		assert!(check_two_substrings(&String::from("Alec"), &String::from("Alec")));
+		assert!(check_two_substrings(&String::from("AlecAlex"), &String::from("AlexAlec")));
+		assert!(check_two_substrings(&String::from("AlecAlexander"), &String::from("AlexanderAlec")));
+		assert!(check_two_substrings(&String::from("𐆚"), &String::from("𐆚")));
+		assert!(check_two_substrings(&String::from("δ𐆔𐆚"), &String::from("𐆚δ𐆔")));
+		assert!(!check_two_substrings(&String::from("A"), &String::from("G")));
+		assert!(!check_two_substrings(&String::from("Alec"), &String::from("Giovanni")));
+		assert!(!check_two_substrings(&String::from("Alec"), &String::from("Alex")));
+		assert!(!check_two_substrings(&String::from("AlecxelA"), &String::from("AlexcelA")));
+		assert!(!check_two_substrings(&String::from("AlecrednaxelA"), &String::from("AlexandercelA")));
+		assert!(!check_two_substrings(&String::from("δ𐆔𐆚"), &String::from("δ𐆚𐆔")));
+	}
+}
