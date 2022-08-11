@@ -193,18 +193,16 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 }
 
 #[test]
-#[ignore] // TODO investigate where otto and diamond types diverge
+#[ignore] // TODO investigate where this fails debug_assert check
 fn oplog_merge_fuzz_once() {
-	// diverge on unordered document contents
 	// oplog_merge_fuzz::<2, true>(46);
 	// oplog_merge_fuzz::<2, true>(121);
 	oplog_merge_fuzz::<2, true>(128);
-	// fail on debug_assert checks
 	// oplog_merge_fuzz::<2, true>(53);
 	// oplog_merge_fuzz::<2, true>(80);
 	// oplog_merge_fuzz::<2, true>(107);
-	// Seph's original test - to restore
-	// oplog_merge_fuzz::<3, true>(321);
+	// TODO restore Seph's original test
+	//  oplog_merge_fuzz::<3, true>(321);
 }
 
 #[test]

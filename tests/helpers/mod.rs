@@ -7,6 +7,7 @@ use diamond_types::list::{
 use otto::{
 	crdt::Crdt, list::{List, ListInstr}, State
 };
+use smartstring::alias::String as SmartString;
 
 struct CharRange(pub Range<usize>);
 
@@ -28,6 +29,24 @@ fn not(op: Operation) -> Operation {
 		OpKind::Del => OpKind::Ins,
 	};
 	nop
+}
+
+// outside crate so can't implement as trait
+fn add(self_: Operation, other: Operation) -> Operation {
+	match (self_.kind, other.kind) {
+		(OpKind::Del, OpKind::Ins) | (OpKind::Ins, OpKind::Del) => {
+			debug_assert!(other.content.as_ref().unwrap().starts_with(&self_.content.as_ref().unwrap().to_string()));
+			let mut op = other.clone();
+			let mut content = op.content.as_ref().unwrap().to_string();
+			content.replace_range(0..self_.content.as_ref().unwrap().len(), "");
+			op.content = Some(SmartString::from(content));
+			debug_assert_lt!(self_.loc.span.start, self_.loc.span.end);
+			debug_assert_lt!(other.loc.span.start, other.loc.span.end);
+			op.loc.span.end = op.loc.span.end - (self_.loc.span.end - self_.loc.span.start);
+			op
+		}
+		_ => todo!("({}, {})", self_.kind, other.kind),
+	}
 }
 
 fn diff_first_idx(self_: &OpLog, other: &OpLog) -> Option<usize> {
@@ -83,19 +102,33 @@ fn convert(crdt: &Crdt<List<u8>>, op: &Operation) -> Vec<ListInstr<u8>> {
 }
 
 pub fn replicate_random_change<const VERBOSE: bool>(crdt: &mut Crdt<List<u8>>, prev_oplog: &OpLog, curr_oplog: &OpLog) {
-	let idx = diff_first_idx(&prev_oplog, &curr_oplog);
-	if VERBOSE && idx.is_some() {
+	let undo_idx = diff_first_idx(&prev_oplog, &curr_oplog);
+	if VERBOSE && undo_idx.is_some() {
 		println!("diamond types collapsed last operation");
 	}
 
 	// last operation previously in the oplog may have been collapsed
-	let n_undos = idx.is_some() as usize;
+	let n_undos = undo_idx.is_some() as usize;
 	let undos = last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op));
 
-	let n_dos = curr_oplog.operations.0.len() - idx.unwrap_or_else(|| prev_oplog.operations.0.len());
+	let n_dos = curr_oplog.operations.0.len() - undo_idx.unwrap_or_else(|| prev_oplog.operations.0.len());
 	let dos = last_n_ops(&curr_oplog, n_dos);
 
-	for op in undos.chain(dos) {
+	// TODO make this less ugly
+	let mut ops: Vec<_> = undos.chain(dos).collect();
+	if undo_idx.is_some() {
+		let fst = ops.remove(0);
+		let snd = ops.remove(0);
+		if VERBOSE {
+			println!("***");
+			println!("{fst:?}");
+			println!("{snd:?}");
+			println!("***");
+		}
+		ops.insert(0, add(fst, snd));
+	}
+
+	for op in ops {
 		if VERBOSE {
 			println!("{op:?}");
 		}
