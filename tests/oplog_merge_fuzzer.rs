@@ -115,8 +115,8 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 	let mut diamonds: [_; N_AGENTS] = (0..N_AGENTS).map(|_| ListCRDT::new()).collect::<Vec<_>>().try_into().unwrap();
 	let mut ottos: [_; N_AGENTS] = (0..N_AGENTS).map(|_| Crdt::new(List::new())).collect::<Vec<_>>().try_into().unwrap();
 
-	for i in 0..diamonds.len() {
-		for a in 0..diamonds.len() {
+	for i in 0..N_AGENTS {
+		for a in 0..N_AGENTS {
 			diamonds[i].get_or_create_agent_id(format!("agent {a}").as_str());
 		}
 	}
@@ -127,7 +127,7 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		}
 
 		for _ in 0..2 {
-			let idx = rng.gen_range(0..diamonds.len());
+			let idx = rng.gen_range(0..N_AGENTS);
 			let prev_oplog = diamonds[idx].oplog.clone();
 			make_random_change(&mut diamonds[idx], None, idx as _, &mut rng);
 			replicate_random_change(&mut ottos[idx], &prev_oplog, &diamonds[idx].oplog);
