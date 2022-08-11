@@ -20,7 +20,9 @@
 
 use std::hash::Hash;
 
-use diamond_types::list::{fuzzer_tools, fuzzer_tools::make_random_change, ListCRDT};
+use diamond_types::list::{
+	fuzzer_tools::{choose_2, make_random_change}, ListCRDT
+};
 use hashbag::HashBag;
 use index_many::generic::{get_many_mut, UnsortedIndices};
 use otto::{crdt::Crdt, list::List, State, StateTest};
@@ -110,10 +112,10 @@ fn add_missing_operations_from_fuzz_forever() {
 	}
 }
 
-fn oplog_merge_fuzz<const VERBOSE: bool>(seed: u64) {
+fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 	let mut rng = SmallRng::seed_from_u64(seed);
-	let mut diamonds = [ListCRDT::new(), ListCRDT::new(), ListCRDT::new()];
-	let mut ottos = [Crdt::new(List::new()), Crdt::new(List::new()), Crdt::new(List::new())];
+	let mut diamonds: [ListCRDT; N_AGENTS] = (0..N_AGENTS).map(|_| ListCRDT::new()).collect::<Vec<_>>().try_into().unwrap();
+	let mut ottos: [Crdt<_>; N_AGENTS] = (0..N_AGENTS).map(|_| Crdt::new(List::new())).collect::<Vec<_>>().try_into().unwrap();
 
 	for i in 0..diamonds.len() {
 		for a in 0..diamonds.len() {
@@ -134,7 +136,7 @@ fn oplog_merge_fuzz<const VERBOSE: bool>(seed: u64) {
 			debug_assert_eq!(diamonds[idx].branch.content.to_string(), doc_to_string(&ottos[idx]));
 		}
 
-		let (idx_a, a_diamond, idx_b, b_diamond) = fuzzer_tools::choose_2(&mut diamonds, &mut rng);
+		let (idx_a, a_diamond, idx_b, b_diamond) = choose_2(&mut diamonds, &mut rng);
 		let [a_otto, b_otto] = get_many_mut(&mut ottos, UnsortedIndices([idx_a, idx_b])).unwrap();
 
 		a_diamond.oplog.add_missing_operations_from(&b_diamond.oplog);
@@ -149,7 +151,13 @@ fn oplog_merge_fuzz<const VERBOSE: bool>(seed: u64) {
 		add_missing_operations_from(b_otto, a_otto);
 		debug_assert_eq!(doc_to_string(&a_otto), doc_to_string(&b_otto));
 
-		debug_assert_eq!(a_diamond.branch.content.to_string().chars().collect::<HashBag<_>>(), doc_to_string(&a_otto).chars().collect(), "diamond types: {:?}\notto: {:?}", a_diamond.branch.content.to_string(), doc_to_string(&a_otto));
+		debug_assert_eq!(
+			a_diamond.branch.content.to_string().chars().collect::<HashBag<_>>(),
+			doc_to_string(&a_otto).chars().collect(),
+			"diamond types: {:?}\notto: {:?}",
+			a_diamond.branch.content.to_string(),
+			doc_to_string(&a_otto)
+		);
 		assert_eq!(a_diamond.branch.content.to_string(), doc_to_string(&a_otto));
 	}
 }
@@ -157,7 +165,7 @@ fn oplog_merge_fuzz<const VERBOSE: bool>(seed: u64) {
 #[test]
 #[ignore] // TODO investigate why otto converges to a different document state than diamond types
 fn oplog_merge_fuzz_once() {
-	oplog_merge_fuzz::<true>(321);
+	oplog_merge_fuzz::<3, true>(321);
 }
 
 #[test]
@@ -167,6 +175,6 @@ fn oplog_merge_fuzz_forever() {
 		if seed % 10 == 0 {
 			println!("seed {seed}");
 		}
-		oplog_merge_fuzz::<false>(seed);
+		oplog_merge_fuzz::<3, false>(seed);
 	}
 }
