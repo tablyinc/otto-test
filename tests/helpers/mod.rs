@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{collections::VecDeque, ops::Range};
 
 use all_asserts::{assert_lt, debug_assert_lt};
 use diamond_types::list::{
@@ -42,7 +42,12 @@ fn add(self_: Operation, other: Operation) -> Operation {
 			op.content = Some(SmartString::from(content));
 			debug_assert_lt!(self_.loc.span.start, self_.loc.span.end);
 			debug_assert_lt!(other.loc.span.start, other.loc.span.end);
-			op.loc.span.end = op.loc.span.end - (self_.loc.span.end - self_.loc.span.start);
+			let span_range = self_.loc.span.end - self_.loc.span.start;
+			if op.kind == OpKind::Ins {
+				op.loc.span.start = op.loc.span.start + span_range;
+			} else {
+				op.loc.span.end = op.loc.span.end - span_range;
+			}
 			op
 		}
 		_ => todo!("({}, {})", self_.kind, other.kind),
@@ -107,25 +112,27 @@ pub fn replicate_random_change<const VERBOSE: bool>(crdt: &mut Crdt<List<u8>>, p
 		println!("diamond types collapsed last operation");
 	}
 
-	// last operation previously in the oplog may have been collapsed
-	let n_undos = undo_idx.is_some() as usize;
-	let undos = last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op));
-
 	let n_dos = curr_oplog.operations.0.len() - undo_idx.unwrap_or_else(|| prev_oplog.operations.0.len());
 	let dos = last_n_ops(&curr_oplog, n_dos);
 
-	// TODO make this less ugly
-	let mut ops: Vec<_> = undos.chain(dos).collect();
+	// last operation previously in the oplog may have been collapsed into the current last operation
+	// in which case we must undo the previous last operation before the current last operation
+	let n_undos = undo_idx.is_some() as usize;
+	let undos = last_n_ops(&prev_oplog, n_undos).rev().map(|op| not(op));
+
+	let mut ops: VecDeque<_> = undos.chain(dos).collect();
+	// resolve the collapse on the diamond types operations before converting into otto instructions
+	// (if you comment out this block of code the collapse gets resolved by the otto instructions)
 	if undo_idx.is_some() {
-		let fst = ops.remove(0);
-		let snd = ops.remove(0);
+		let fst = ops.pop_front().unwrap();
+		let snd = ops.pop_front().unwrap();
 		if VERBOSE {
 			println!("***");
 			println!("{fst:?}");
 			println!("{snd:?}");
 			println!("***");
 		}
-		ops.insert(0, add(fst, snd));
+		ops.push_front(add(fst, snd));
 	}
 
 	for op in ops {

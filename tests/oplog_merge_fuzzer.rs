@@ -36,7 +36,7 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
 	diamond.get_or_create_agent_id("agent 0");
 	let mut otto = Crdt::new(List::new());
 
-	for i in 0..200 {
+	for i in 0..2 {
 		if VERBOSE {
 			println!("\n\ni {i}");
 		}
@@ -141,6 +141,7 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 		let [a_otto, b_otto] = get_many_mut(&mut ottos, UnsortedIndices([idx_a, idx_b])).unwrap();
 
 		if VERBOSE {
+			println!("syncing agents: {idx_a} ↔ {idx_b}");
 			println!("diamond types (before): {}", a_diamond.branch.content.to_string());
 			println!("diamond types (before): {}", b_diamond.branch.content.to_string());
 		}
@@ -193,14 +194,9 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 }
 
 #[test]
-#[ignore] // TODO investigate where this fails debug_assert check
+#[ignore] // TODO investigate why otto and diamond types diverge on unordered contents
 fn oplog_merge_fuzz_once() {
-	// oplog_merge_fuzz::<2, true>(46);
-	// oplog_merge_fuzz::<2, true>(121);
-	oplog_merge_fuzz::<2, true>(128);
-	// oplog_merge_fuzz::<2, true>(53);
-	// oplog_merge_fuzz::<2, true>(80);
-	// oplog_merge_fuzz::<2, true>(107);
+	oplog_merge_fuzz::<3, true>(4197);
 	// TODO restore Seph's original test
 	//  oplog_merge_fuzz::<3, true>(321);
 }
