@@ -192,11 +192,11 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 }
 
 #[test]
-#[ignore] // TODO investigate why otto converges to a different document state than diamond types
 fn oplog_merge_fuzz_once() {
 	oplog_merge_fuzz::<3, true>(321);
 }
 
+// TODO investigate interesting divergence cases where this test fails
 #[test]
 #[ignore]
 fn oplog_merge_fuzz_forever() {
