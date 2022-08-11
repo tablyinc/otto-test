@@ -168,14 +168,20 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 			println!("{}", doc_to_string(&a_otto));
 		}
 
-		debug_assert_eq!(
+		// Ideally we'd like to check exact document contents match, however algorithms' merging behaviour may be slightly different
+		// so even when all changes are incorporated they may appear in different order, hence we check contents irrespective of order
+		assert_eq!(
 			a_diamond.branch.content.to_string().chars().collect::<HashBag<_>>(),
 			doc_to_string(&a_otto).chars().collect(),
 			"diamond types: {}\notto: {}",
 			a_diamond.branch.content.to_string(),
 			doc_to_string(&a_otto)
 		);
-		assert_eq!(a_diamond.branch.content.to_string(), doc_to_string(&a_otto));
+		// Having passed the above checks, if document contents diverge we exit this test as we can't generate equivalent instructions
+		// (in practice it means this test should be run many times with fuzzing to be useful)
+		if a_diamond.branch.content.to_string() != doc_to_string(&a_otto) {
+			break;
+		}
 	}
 }
 
