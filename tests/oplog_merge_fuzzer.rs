@@ -114,8 +114,8 @@ fn add_missing_operations_from_fuzz_forever() {
 
 fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 	let mut rng = SmallRng::seed_from_u64(seed);
-	let mut diamonds: [ListCRDT; N_AGENTS] = (0..N_AGENTS).map(|_| ListCRDT::new()).collect::<Vec<_>>().try_into().unwrap();
-	let mut ottos: [Crdt<_>; N_AGENTS] = (0..N_AGENTS).map(|_| Crdt::new(List::new())).collect::<Vec<_>>().try_into().unwrap();
+	let mut diamonds: [_; N_AGENTS] = (0..N_AGENTS).map(|_| ListCRDT::new()).collect::<Vec<_>>().try_into().unwrap();
+	let mut ottos: [_; N_AGENTS] = (0..N_AGENTS).map(|_| Crdt::new(List::new())).collect::<Vec<_>>().try_into().unwrap();
 
 	for i in 0..diamonds.len() {
 		for a in 0..diamonds.len() {
