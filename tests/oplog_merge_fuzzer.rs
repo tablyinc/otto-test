@@ -30,7 +30,7 @@ use helpers::{check_two_substrings, doc_to_string, replicate_random_change};
 
 mod helpers;
 
-fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
+fn replicate_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
 	let mut rng = SmallRng::seed_from_u64(seed);
 	let mut diamond = ListCRDT::new();
 	diamond.get_or_create_agent_id("agent 0");
@@ -41,26 +41,26 @@ fn make_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
 			println!("\n\ni {i}");
 		}
 
-		let prev_oplog = diamond.oplog.clone();
+		let prev_version = diamond.oplog.version.clone();
 		make_random_change(&mut diamond, None, 0 as _, &mut rng);
-		replicate_random_change::<VERBOSE>(&mut otto, &prev_oplog, &diamond.oplog);
+		replicate_random_change::<VERBOSE>(&mut otto, &prev_version, &diamond.oplog);
 		assert_eq!(diamond.branch.content.to_string(), doc_to_string(&otto));
 	}
 }
 
 #[test]
-fn make_random_change_fuzz_once() {
-	make_random_change_fuzz::<true>(321);
+fn replicate_random_change_fuzz_once() {
+	replicate_random_change_fuzz::<true>(321);
 }
 
 #[test]
 #[ignore]
-fn make_random_change_fuzz_forever() {
+fn replicate_random_change_fuzz_forever() {
 	for seed in 0.. {
 		if seed % 10 == 0 {
 			println!("seed {seed}");
 		}
-		make_random_change_fuzz::<false>(seed);
+		replicate_random_change_fuzz::<false>(seed);
 	}
 }
 
@@ -131,9 +131,9 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 			if VERBOSE {
 				println!("random operations at agent: {idx}");
 			}
-			let prev_oplog = diamonds[idx].oplog.clone();
+			let prev_version = diamonds[idx].oplog.version.clone();
 			make_random_change(&mut diamonds[idx], None, idx as _, &mut rng);
-			replicate_random_change::<VERBOSE>(&mut ottos[idx], &prev_oplog, &diamonds[idx].oplog);
+			replicate_random_change::<VERBOSE>(&mut ottos[idx], &prev_version, &diamonds[idx].oplog);
 			debug_assert_eq!(diamonds[idx].branch.content.to_string(), doc_to_string(&ottos[idx]));
 		}
 
