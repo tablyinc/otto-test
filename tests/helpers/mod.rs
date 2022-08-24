@@ -7,56 +7,58 @@ use diamond_types::{
 	}, Time
 };
 use otto::{
-	crdt::Crdt, list::{List, ListInstr}, State
+	crdt::Crdt, list_wrap::{ListInstrWrap, ListWrap}, State
 };
+use rand::{random, rngs::SmallRng, Rng, SeedableRng};
 
 struct CharRange(Range<usize>);
 
 struct Utf8Range(Range<usize>);
 
-pub(crate) fn doc_to_string(doc: &List<u8>) -> String {
-	String::from_utf8((0..doc.len()).map(|at| doc[at]).collect::<Vec<_>>()).unwrap()
+pub(crate) fn doc_to_string(doc: &ListWrap<u8>) -> String {
+	String::from_utf8((0..doc.0.len()).map(|at| doc.0[at]).collect::<Vec<_>>()).unwrap()
 }
 
 fn get_char_range(op: &Operation) -> CharRange {
 	CharRange(Range { start: op.loc.span.start.min(op.loc.span.end), end: op.loc.span.start.max(op.loc.span.end) })
 }
 
-fn to_utf8_range(doc: &List<u8>, char_range: &CharRange) -> Utf8Range {
+fn to_utf8_range(doc: &ListWrap<u8>, char_range: &CharRange) -> Utf8Range {
 	let string = doc_to_string(&doc);
 	let offset = string.chars().take(char_range.0.start).map(|char| char.len_utf8()).sum();
 	let span: usize = string.chars().skip(char_range.0.start).take(char_range.0.end - char_range.0.start).map(|char| char.len_utf8()).sum();
 	Utf8Range(offset..offset + span)
 }
 
-fn convert(crdt: &Crdt<List<u8>>, op: &Operation) -> Vec<ListInstr<u8>> {
+fn convert(crdt: &Crdt<ListWrap<u8>>, op: &Operation) -> Vec<ListInstrWrap<u8>> {
 	debug_assert!(op.content.is_some());
 	let mut ops = vec![];
 	let mut doc = (**crdt).clone();
 	let char_range = get_char_range(&op);
 	let utf8_range = to_utf8_range(&doc, &char_range);
+	let rng = &mut SmallRng::seed_from_u64(random());
 	match op.kind {
 		OpKind::Ins => {
 			debug_assert!(op.loc.fwd);
 			debug_assert_lt!(op.loc.span.start, op.loc.span.end);
 			for (i, x) in op.content.as_ref().unwrap().as_bytes().iter().enumerate() {
-				let ins = doc.insert(utf8_range.0.start + i, *x);
-				doc.apply(&ins);
-				ops.push(ins);
+				let ins = doc.0.insert(utf8_range.0.start + i, *x);
+				doc.0.apply(&ins);
+				ops.push(ListInstrWrap(ins, rng.gen()));
 			}
 		}
 		OpKind::Del => {
 			for _ in 0..utf8_range.0.len() {
-				let del = doc.delete(utf8_range.0.start);
-				doc.apply(&del);
-				ops.push(del);
+				let del = doc.0.delete(utf8_range.0.start);
+				doc.0.apply(&del);
+				ops.push(ListInstrWrap(del, rng.gen()));
 			}
 		}
 	}
 	ops
 }
 
-pub(crate) fn replicate_random_change<const VERBOSE: bool>(crdt: &mut Crdt<List<u8>>, prev_version: &[Time], curr_oplog: &OpLog) {
+pub(crate) fn replicate_random_change<const VERBOSE: bool>(crdt: &mut Crdt<ListWrap<u8>>, prev_version: &[Time], curr_oplog: &OpLog) {
 	for op in curr_oplog.iter_range_since(prev_version) {
 		if VERBOSE {
 			println!("{op:?}");

@@ -23,7 +23,7 @@ use diamond_types::list::{
 };
 use hashbag::HashBag;
 use index_many::generic::{get_many_mut, UnsortedIndices};
-use otto::{crdt::Crdt, list::List, State, StateTest};
+use otto::{crdt::Crdt, list::List, list_wrap::ListWrap, State, StateTest};
 use rand::prelude::*;
 
 use helpers::{check_two_substrings, doc_to_string, replicate_random_change};
@@ -34,7 +34,7 @@ fn replicate_random_change_fuzz<const VERBOSE: bool>(seed: u64) {
 	let mut rng = SmallRng::seed_from_u64(seed);
 	let mut diamond = ListCRDT::new();
 	diamond.get_or_create_agent_id("agent 0");
-	let mut otto = Crdt::new(List::new());
+	let mut otto = Crdt::new(ListWrap::new());
 
 	for i in 0..2 {
 		if VERBOSE {
@@ -113,7 +113,7 @@ fn add_missing_operations_from_fuzz_forever() {
 fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 	let mut rng = SmallRng::seed_from_u64(seed);
 	let mut diamonds: [_; N_AGENTS] = (0..N_AGENTS).map(|_| ListCRDT::new()).collect::<Vec<_>>().try_into().unwrap();
-	let mut ottos: [_; N_AGENTS] = (0..N_AGENTS).map(|_| Crdt::new(List::new())).collect::<Vec<_>>().try_into().unwrap();
+	let mut ottos: [_; N_AGENTS] = (0..N_AGENTS).map(|_| Crdt::new(ListWrap::new())).collect::<Vec<_>>().try_into().unwrap();
 
 	for i in 0..N_AGENTS {
 		for a in 0..N_AGENTS {
