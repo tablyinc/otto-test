@@ -16,13 +16,17 @@ edition = "2021"
 
 [dev-dependencies]
 cap = "0.1.0"
-criterion = "0.3.6"
+# this revision is the tip of master (as of this writing) in Seph's repo
 crdt-testdata = { git = "https://github.com/josephg/diamond-types/", rev = "316032a3b9fb7211704ee60f67cdde8824d24150" }
+criterion = "0.3.6"
+# this revision is our forked patch on top of the tip of master (as of this writing) from Seph's repo
+diamond-types = { git = "https://github.com/tably-team/diamond-types/", rev = "7d9a9ac8c11d3eb0454ba9065e5c115952e856e8" }
+hashbag = "0.1.9"
+index_many = "0.6"
 
 [dependencies]
-otto = { path = "../otto", version = "0.1.0" }
+otto = { path = "../otto", version = "0.0.0" }
 
-diamond-types = { git = "https://github.com/josephg/diamond-types/", rev = "316032a3b9fb7211704ee60f67cdde8824d24150" }
 all_asserts = "2"
 itertools = "0.10"
 jemallocator = "0.5"
