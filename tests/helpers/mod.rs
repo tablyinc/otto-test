@@ -23,7 +23,7 @@ fn get_char_range(op: &Operation) -> CharRange {
 }
 
 fn to_utf8_range(doc: &List<u8>, char_range: &CharRange) -> Utf8Range {
-	let string = doc_to_string(&doc);
+	let string = doc_to_string(doc);
 	let offset = string.chars().take(char_range.0.start).map(|char| char.len_utf8()).sum();
 	let span: usize = string.chars().skip(char_range.0.start).take(char_range.0.end - char_range.0.start).map(|char| char.len_utf8()).sum();
 	Utf8Range(offset..offset + span)
@@ -33,7 +33,7 @@ fn convert(crdt: &Crdt<List<u8>>, op: &Operation) -> Vec<ListInstr<u8>> {
 	debug_assert!(op.content.is_some());
 	let mut ops = vec![];
 	let mut doc = (**crdt).clone();
-	let char_range = get_char_range(&op);
+	let char_range = get_char_range(op);
 	let utf8_range = to_utf8_range(&doc, &char_range);
 	match op.kind {
 		OpKind::Ins => {
