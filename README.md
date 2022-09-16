@@ -10,7 +10,7 @@ It also supports combining these approaches to synchronise a mix of clients usin
 ## Project aims
 
 * [ ] Minimal bookkeeping (no timestamps, IDs or similar)
-* [ ] Rich set of data types and operations (e.g. `Map<K, V>`, [`RichText`](https://www.inkandswitch.com/peritext/), `sort` and `group_by` operations on `List<T>`)
+* [ ] Rich set of data types (e.g. [`RichText`](https://www.inkandswitch.com/peritext/)) and operations (e.g. `sort` and `group_by` operations on `List<T>`)
 * [x] Composability (support arbitrary nesting of types, e.g. `List<(u64, List<u8>)>`)
 * [x] Differential dataflow support
 * [x] Performance, sufficient for overhead to be negligible in real-world use (within \~1 OoM of [Diamond types](https://josephg.com/blog/crdts-go-brrr/))
@@ -18,12 +18,14 @@ It also supports combining these approaches to synchronise a mix of clients usin
 
 ## Data types supported
 
-| Data type | Operations supported |
-|---|---|
-| `List<T>` | `insert_at`, `delete_at`, `map_at` |
-| `Register<T>` | `set`, `map` |
-| `(A, B, ...)` | `map_a`, `map_b`, ... |
-| `#[derive(State)]` for arbitrary structs and enums | `map_field_a`, `map_field_b`, ... |
+| Data type                                                               | Operations supported |
+|-------------------------------------------------------------------------|---|
+| `Map<K, V>`                                                             | `insert`, `delete`, `map_at`|
+| `Set<T>`                                                                | `insert`, `delete`|
+| `List<T>`                                                               | `insert_at`, `delete_at`, `map_at` |
+| `Register<T>`                                                           | `set`, `map` |
+| `(A, B, ...)`                                                           | `map_a`, `map_b`, ... |
+| `#[derive(State)]` for arbitrary structs and enums                      | `map_field_a`, `map_field_b`, ... |
 | `bool u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 char usize isize` | - |
 
 ## License
