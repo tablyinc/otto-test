@@ -115,9 +115,9 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 	let mut diamonds: [_; N_AGENTS] = (0..N_AGENTS).map(|_| ListCRDT::new()).collect::<Vec<_>>().try_into().unwrap();
 	let mut ottos: [_; N_AGENTS] = (0..N_AGENTS).map(|_| Crdt::new(List::new())).collect::<Vec<_>>().try_into().unwrap();
 
-	for i in 0..N_AGENTS {
+	for diamond in diamonds.iter_mut().take(N_AGENTS) {
 		for a in 0..N_AGENTS {
-			diamonds[i].get_or_create_agent_id(format!("agent {a}").as_str());
+			diamond.get_or_create_agent_id(format!("agent {a}").as_str());
 		}
 	}
 
@@ -142,8 +142,8 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 
 		if VERBOSE {
 			println!("syncing agents: {idx_a} ↔ {idx_b}");
-			println!("diamond types (before): {}", a_diamond.branch.content.to_string());
-			println!("diamond types (before): {}", b_diamond.branch.content.to_string());
+			println!("diamond types (before): {}", a_diamond.branch.content);
+			println!("diamond types (before): {}", b_diamond.branch.content);
 		}
 
 		a_diamond.oplog.add_missing_operations_from(&b_diamond.oplog);
@@ -158,14 +158,14 @@ fn oplog_merge_fuzz<const N_AGENTS: usize, const VERBOSE: bool>(seed: u64) {
 
 		if VERBOSE {
 			println!("diamond types (after): {diamond_string}");
-			println!("otto (before): {}", doc_to_string(&a_otto));
-			println!("otto (before): {}", doc_to_string(&b_otto));
+			println!("otto (before): {}", doc_to_string(a_otto));
+			println!("otto (before): {}", doc_to_string(b_otto));
 		}
 
 		add_missing_operations_from(a_otto, b_otto);
 		add_missing_operations_from(b_otto, a_otto);
-		let otto_string = doc_to_string(&a_otto);
-		debug_assert_eq!(otto_string, doc_to_string(&b_otto));
+		let otto_string = doc_to_string(a_otto);
+		debug_assert_eq!(otto_string, doc_to_string(b_otto));
 
 		if VERBOSE {
 			println!("otto (after): {otto_string}");
