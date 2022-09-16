@@ -14,7 +14,7 @@ struct CharRange(Range<usize>);
 
 struct Utf8Range(Range<usize>);
 
-pub(crate) fn doc_to_string(doc: &List<u8>) -> String {
+pub(super) fn doc_to_string(doc: &List<u8>) -> String {
 	String::from_utf8((0..doc.len()).map(|at| doc[at]).collect::<Vec<_>>()).unwrap()
 }
 
@@ -56,7 +56,7 @@ fn convert(crdt: &Crdt<List<u8>>, op: &Operation) -> Vec<ListInstr<u8>> {
 	ops
 }
 
-pub(crate) fn replicate_random_change<const VERBOSE: bool>(crdt: &mut Crdt<List<u8>>, prev_version: &[Time], curr_oplog: &OpLog) {
+pub(super) fn replicate_random_change<const VERBOSE: bool>(crdt: &mut Crdt<List<u8>>, prev_version: &[Time], curr_oplog: &OpLog) {
 	for op in curr_oplog.iter_range_since(prev_version) {
 		if VERBOSE {
 			println!("{op:?}");
@@ -69,7 +69,7 @@ pub(crate) fn replicate_random_change<const VERBOSE: bool>(crdt: &mut Crdt<List<
 }
 
 /// Checks if strings are the same two sub-strings appended in different (or same) order
-pub(crate) fn check_two_substrings(self_: &String, other: &String) -> bool {
+pub(super) fn check_two_substrings(self_: &String, other: &String) -> bool {
 	if self_.is_empty() && other.is_empty() {
 		return true;
 	}
