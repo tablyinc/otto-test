@@ -20,12 +20,12 @@ It also supports combining these approaches to synchronise a mix of clients usin
 
 | Data type                                                               | Operations supported |
 |-------------------------------------------------------------------------|---|
-| `Map<K, V>`                                                             | `insert`, `delete`, `map_at`|
-| `Set<T>`                                                                | `insert`, `delete`|
-| `List<T>`                                                               | `insert_at`, `delete_at`, `map_at` |
-| `Register<T>`                                                           | `set`, `map` |
-| `(A, B, ...)`                                                           | `map_a`, `map_b`, ... |
-| `#[derive(State)]` for arbitrary structs and enums                      | `map_field_a`, `map_field_b`, ... |
+| `Map<K, V>`                                                             | `insert(K, V)`, `delete(K)`, `map_at(K, V::Instr)`|
+| `Set<T>`                                                                | `insert(T)`, `delete(T)`|
+| `List<T>`                                                               | `insert_at(usize, T)`, `delete_at(usize)`, `map_at(usize, T::Instr)` |
+| `Register<T>`                                                           | `set(T)`, `map(T::Instr)` |
+| `(A, B, ...)`                                                           | `map_a(A::Instr)`, `map_b(B::Instr)`, ... |
+| `#[derive(State)]` for arbitrary structs and enums                      | `map_field_a(A::Instr)`, `map_field_b(B::Instr)`, ... |
 | `bool u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64 char usize isize` | - |
 
 ## License
