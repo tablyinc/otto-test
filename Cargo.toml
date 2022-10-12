@@ -26,6 +26,7 @@ index_many = "0.6"
 
 [dependencies]
 otto = { path = "../otto", version = "0.0.0" }
+borsh = { path = "../otto/borsh", version = "0.0.0" }
 
 all_asserts = "2"
 itertools = "0.10"

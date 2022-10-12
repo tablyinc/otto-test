@@ -1,5 +1,5 @@
-use otto::{crdt::Crdt, list::List, map::Map, set::Set, settable::Settable as Register, text::Text, State, StateTest};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use otto::{crdt::Crdt, list::List, map::Map, mappable_register::MappableRegister as Register, set::Set, State, StateTest, text::Text};
+use rand::{Rng, rngs::SmallRng, SeedableRng};
 
 #[ignore]
 #[test]
