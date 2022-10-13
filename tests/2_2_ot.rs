@@ -1,8 +1,8 @@
 #![allow(clippy::if_not_else, clippy::range_plus_one)]
 
-use itertools::{multizip as zip, Itertools};
-use otto::{list::List, settable::Settable as Register, text::Text, StateTest};
-use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
+use itertools::{Itertools, multizip as zip};
+use otto::{list::List, mappable_register::MappableRegister, StateTest, text::Text};
+use rand::{prelude::SliceRandom, Rng, rngs::SmallRng, SeedableRng};
 use random_branch::branch_using;
 
 use otto_test::{channel::channel, ot_client::OtClient, ot_server::OtServer};
@@ -56,7 +56,7 @@ fn fuzz_ot() {
 			println!("{}", i);
 		}
 		test_ot::<Text>(rng);
-		test_ot::<List<List<Register<u64>>>>(rng);
+		test_ot::<List<List<MappableRegister<u64>>>>(rng);
 	}
 }
 
@@ -67,6 +67,6 @@ fn fuzz_ot_short() {
 	let rng = &mut SmallRng::seed_from_u64(seed);
 	for _ in 0..100 {
 		test_ot::<Text>(rng);
-		test_ot::<List<List<Register<u64>>>>(rng);
+		test_ot::<List<List<MappableRegister<u64>>>>(rng);
 	}
 }
