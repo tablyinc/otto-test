@@ -21,8 +21,8 @@ use std::{alloc, str};
 use all_asserts::assert_le;
 use cap::Cap;
 use crdt_testdata::{load_testing_data, TestData, TestPatch};
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use otto::{crdt::Crdt, list::List};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main, Throughput};
+use otto::{crdt::Crdt, list::{List, OttoList}};
 
 #[global_allocator]
 static ALLOCATOR: Cap<alloc::System> = Cap::new(alloc::System, usize::MAX);

@@ -3,12 +3,11 @@ use std::ops::Range;
 use all_asserts::{assert_lt, debug_assert_lt};
 use diamond_types::{
 	list::{
-		operation::{OpKind, Operation}, OpLog
+		operation::{Operation, OpKind}, OpLog
 	}, Time
 };
-use otto::{
-	crdt::Crdt, list::{List, ListInstr}, State
-};
+use list::OttoList;
+use otto::{crdt::Crdt, list::{List, ListInstr}, list, State};
 
 struct CharRange(Range<usize>);
 
