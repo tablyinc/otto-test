@@ -1,8 +1,8 @@
 #![allow(clippy::if_not_else, clippy::range_plus_one)]
 
 use itertools::Itertools;
-use otto::{list::List, settable::Settable as Register, StateTest};
-use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
+use otto::{list::List, mappable_register::MappableRegister, StateTest};
+use rand::{prelude::SliceRandom, Rng, rngs::SmallRng, SeedableRng};
 use random_branch::branch_using;
 
 use otto_test::{channel::channel, crdt_client::CrdtClient};
@@ -56,7 +56,7 @@ fn fuzz_crdt() {
 		if i % 1_000 == 0 {
 			println!("{}", i);
 		}
-		test_crdt::<List<List<Register<u64>>>>(rng);
+		test_crdt::<List<List<MappableRegister<u64>>>>(rng);
 	}
 }
 
@@ -66,6 +66,6 @@ fn fuzz_crdt_short() {
 	println!("seed: {seed}");
 	let rng = &mut SmallRng::seed_from_u64(seed);
 	for _ in 0..100 {
-		test_crdt::<List<List<Register<u64>>>>(rng);
+		test_crdt::<List<List<MappableRegister<u64>>>>(rng);
 	}
 }

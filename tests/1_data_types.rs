@@ -1,10 +1,10 @@
-use otto::{crdt::Crdt, list::List, map::Map, mappable_register::MappableRegister as Register, set::Set, State, StateTest, text::Text};
+use otto::{crdt::Crdt, list::List, map::Map, mappable_register::MappableRegister, set::Set, State, StateTest, text::Text};
 use rand::{Rng, rngs::SmallRng, SeedableRng};
 
 #[ignore]
 #[test]
 fn fuzz_register() {
-	fuzz::<Register<u8>>();
+	fuzz::<MappableRegister<u8>>();
 }
 
 #[ignore]
@@ -28,13 +28,13 @@ fn fuzz_tuple() {
 #[ignore]
 #[test]
 fn fuzz_struct() {
-	fuzz::<Register<FooStruct>>();
+	fuzz::<MappableRegister<FooStruct>>();
 }
 
 #[ignore]
 #[test]
 fn fuzz_enum() {
-	fuzz::<Register<FooEnum>>();
+	fuzz::<MappableRegister<FooEnum>>();
 }
 
 #[ignore]
@@ -51,7 +51,7 @@ fn fuzz_map() {
 
 #[test]
 fn fuzz_short_register() {
-	fuzz_short::<Register<u8>>();
+	fuzz_short::<MappableRegister<u8>>();
 }
 
 #[test]
@@ -71,12 +71,12 @@ fn fuzz_short_tuple() {
 
 #[test]
 fn fuzz_short_struct() {
-	fuzz_short::<Register<FooStruct>>();
+	fuzz_short::<MappableRegister<FooStruct>>();
 }
 
 #[test]
 fn fuzz_short_enum() {
-	fuzz_short::<Register<FooEnum>>();
+	fuzz_short::<MappableRegister<FooEnum>>();
 }
 
 #[test]
@@ -93,18 +93,18 @@ fn fuzz_short_map() {
 struct FooStruct {
 	a: Text,
 	b: u8,
-	c: Register<u8>,
-	d: Register<Text>,
-	e: List<(Register<u8>, Text)>,
+	c: MappableRegister<u8>,
+	d: MappableRegister<Text>,
+	e: List<(MappableRegister<u8>, Text)>,
 }
 
 #[derive(Clone, PartialEq, Eq, State, StateTest, Debug)]
 enum FooEnum {
 	A(Text),
 	B(u8),
-	C(Register<u8>),
-	D(Register<Text>),
-	E(List<(Register<u8>, Text)>),
+	C(MappableRegister<u8>),
+	D(MappableRegister<Text>),
+	E(List<(MappableRegister<u8>, Text)>),
 }
 
 fn fuzz<T: StateTest>() {
